@@ -1,56 +1,42 @@
-# Welcome to your Expo app 👋
+# NOVICE — CAMPUS MARKETPLACE
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**Trường Đại học Công nghệ Đồng Nai (DNTU)**  
+**Khoa Công nghệ Thông tin**  
+**Môn học:** Lập trình Mobile (Mobile App Development)  
+**Đề tài (Topic 02):** Sàn giao dịch & Mua bán trao đổi đồ dùng sinh viên (Campus Marketplace)  
 
-## Get started
+---
 
-1. Install dependencies
+## 👥 THÔNG TIN NHÓM (TEAM NOVICE)
 
-   ```bash
-   npm install
-   ```
+- **Tên nhóm:** Novice
+- **Repository:** https://github.com/Shishou107/novice-campus-marketplace.git
 
-2. Start the app
+### Danh sách thành viên:
+| STT | MSSV | Họ và tên | Vai trò |
+|:---:|:---:|:---|:---|
+| 1 | **1923050065** | **Nguyễn Tấn Tài** | Nhóm trưởng |
+| 2 | **1923050468** | **Lâm Trí Hoà** | Thành viên |
+| 3 | **1923050167** | **Vũ Hải Đăng** | Thành viên |
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 📖 GIỚI THIỆU ĐỀ TÀI (PROJECT OVERVIEW)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Ứng dụng **Campus Marketplace** là nền tảng di động hỗ trợ sinh viên trong khuôn viên trường đại học:
+- Đăng tin thanh lý, mua bán giáo trình, dụng cụ học tập, thiết bị điện tử.
+- Trao đổi đồ dùng cá nhân, tìm bạn ở ghép, tìm đồ thất lạc trong trường.
+- Hệ thống danh mục, tìm kiếm, lọc theo tình trạng và giá cả.
+- Quản lý phiên đăng nhập an toàn, lưu giỏ hàng và danh sách sản phẩm quan tâm.
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
-
-When you're ready, run:
+## 🚀 HƯỚNG DẪN CHẠY ỨNG DỤNG
 
 ```bash
-npm run reset-project
+# 1. Cài đặt thư viện
+npm install
+
+# 2. Khởi chạy ứng dụng
+npx expo start
 ```
-
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
