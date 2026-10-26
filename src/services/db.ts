@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { AuthSession, Product, ProductCategory, ProductWithSeller, User } from '@/types';
+import { AuthSession, ProductCategory, ProductWithSeller, User } from '@/types';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 

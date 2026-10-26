@@ -5,26 +5,44 @@ export const Colors = {
         primaryLight: '#EFF6FF',
         accent: '#F97316',
         price: '#DC2626',
+        danger: '#DC2626',
+        dangerLight: '#FEE2E2',
+        success: '#16A34A',
+        successLight: '#DCFCE7',
+        warning: '#D97706',
+        warningLight: '#FEF3C7',
         background: '#F8FAFC',
         surface: '#FFFFFF',
         text: '#0F172A',
         textSecondary: '#64748B',
         border: '#E2E8F0',
         cardShadow: '#000000',
+        white: '#FFFFFF',
     },
     dark: {
         primary: '#3B82F6',
         primaryLight: '#1E293B',
         accent: '#FB923C',
         price: '#EF4444',
+        danger: '#EF4444',
+        dangerLight: '#7F1D1D',
+        success: '#22C55E',
+        successLight: '#14532D',
+        warning: '#F59E0B',
+        warningLight: '#78350F',
         background: '#0F172A',
         surface: '#1E293B',
         text: '#F8FAFC',
         textSecondary: '#94A3B8',
         border: '#334155',
         cardShadow: '#000000',
+        white: '#FFFFFF',
     },
 } as const;
+
+export type ThemeColors = typeof Colors.light;
+export type ThemeColor = keyof ThemeColors;
+
 
 export const Spacing = {
     xs: 4,
