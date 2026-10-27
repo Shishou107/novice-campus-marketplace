@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,10 +15,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
 import { AppButton } from '@/components/common/AppButton';
+import { ProductCard } from '@/components/ProductCard';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -29,7 +30,6 @@ import {
   updateProductStatus,
 } from '@/services/db';
 import { CATEGORIES, ProductWithSeller } from '@/types';
-import { ProductCard } from '@/components/ProductCard';
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
