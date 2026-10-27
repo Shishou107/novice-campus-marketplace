@@ -174,3 +174,4 @@ export const DNTU_MEETING_POINTS: Omit<MeetingPoint, 'id'>[] = [
     isActive: true,
   },
 ];
+
