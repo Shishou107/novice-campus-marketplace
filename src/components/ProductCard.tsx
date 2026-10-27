@@ -11,8 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ProductWithSeller, CATEGORIES } from '@/types';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useFavorites } from '@/context/FavoritesContext';
 import { useTheme } from '@/hooks/use-theme';
-import { toggleFavorite } from '@/services/db';
 
 export interface ProductCardProps {
   product: ProductWithSeller;
@@ -72,12 +72,10 @@ export const getShortSellerName = (name?: string): string => {
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onFavoriteChanged }) => {
   const colors = useTheme();
   const { user } = useAuth();
+  const { isFavorite, toggleFav } = useFavorites();
   const [imageError, setImageError] = useState(false);
-  const [optimisticFav, setOptimisticFav] = useState<{ id: number; val: boolean } | null>(null);
 
-  const isFav = optimisticFav && optimisticFav.id === product.id
-    ? optimisticFav.val
-    : Boolean(product.isFavorited);
+  const isFav = isFavorite(product.id);
 
   const categoryLabel = CATEGORIES.find((c) => c.id === product.category)?.label;
   const badgeText = product.location || categoryLabel || product.category;
@@ -87,9 +85,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onFa
 
   const handleToggleFav = async () => {
     if (!user) return;
-    const nextState = !isFav;
-    setOptimisticFav({ id: product.id, val: nextState });
-    await toggleFavorite(user.id, product.id);
+    await toggleFav(product.id);
     onFavoriteChanged?.();
   };
 

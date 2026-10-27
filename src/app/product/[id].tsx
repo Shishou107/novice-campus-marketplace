@@ -20,13 +20,13 @@ import { AppButton } from '@/components/common/AppButton';
 import { ProductCard } from '@/components/ProductCard';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useFavorites } from '@/context/FavoritesContext';
 import { useTheme } from '@/hooks/use-theme';
 import {
   addToCart,
   deleteProduct,
   getProductById,
   getProducts,
-  toggleFavorite,
   updateProductStatus,
 } from '@/services/db';
 import { CATEGORIES, ProductWithSeller } from '@/types';
@@ -36,16 +36,17 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const colors = useTheme();
   const { user, isLoggedIn } = useAuth();
+  const { isFavorite, toggleFav } = useFavorites();
 
   const [product, setProduct] = useState<ProductWithSeller | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<ProductWithSeller[]>([]);
-  const [isFavorited, setIsFavorited] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
   const [isAddingCart, setIsAddingCart] = useState<boolean>(false);
   const [copiedPhone, setCopiedPhone] = useState<boolean>(false);
 
   const productId = id ? parseInt(id, 10) : NaN;
+  const isFav = product ? isFavorite(product.id) : false;
 
   useFocusEffect(
     useCallback(() => {
@@ -62,7 +63,6 @@ export default function ProductDetailScreen() {
           const data = await getProductById(productId, user?.id);
           if (isMounted) {
             setProduct(data);
-            setIsFavorited(Boolean(data?.isFavorited));
             if (data) {
               const related = await getProducts({
                 category: data.category,
@@ -103,9 +103,7 @@ export default function ProductDetailScreen() {
     }
 
     if (!product) return;
-    const nextState = !isFavorited;
-    setIsFavorited(nextState);
-    await toggleFavorite(user.id, product.id);
+    await toggleFav(product.id);
   };
 
   const handleAddToCart = async () => {
@@ -294,9 +292,9 @@ export default function ProductDetailScreen() {
             accessibilityLabel="Yêu thích"
           >
             <Ionicons
-              name={isFavorited ? 'heart' : 'heart-outline'}
+              name={isFav ? 'heart' : 'heart-outline'}
               size={18}
-              color={isFavorited ? colors.price : colors.text}
+              color={isFav ? colors.price : colors.text}
             />
           </TouchableOpacity>
 

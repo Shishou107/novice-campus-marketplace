@@ -585,6 +585,15 @@ export async function toggleFavorite(userId: number, productId: number): Promise
   }
 }
 
+export async function getUserFavoriteIds(userId: number): Promise<number[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ product_id: number }>(
+    'SELECT product_id FROM favorites WHERE user_id = ?',
+    [userId]
+  );
+  return rows.map((r) => r.product_id);
+}
+
 export async function getFavoriteProducts(userId: number): Promise<ProductWithSeller[]> {
   const db = await getDb();
   const sql = `

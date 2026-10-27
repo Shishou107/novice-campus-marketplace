@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,6 +16,7 @@ import { AppButton } from '@/components/common/AppButton';
 import { ProductCard } from '@/components/ProductCard';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { useFavorites } from '@/context/FavoritesContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getFavoriteProducts } from '@/services/db';
 import { ProductWithSeller } from '@/types';
@@ -23,6 +24,7 @@ import { ProductWithSeller } from '@/types';
 export default function FavoritesScreen() {
   const colors = useTheme();
   const { user, isLoggedIn } = useAuth();
+  const { favoriteIds } = useFavorites();
 
   const [favorites, setFavorites] = useState<ProductWithSeller[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -57,6 +59,10 @@ export default function FavoritesScreen() {
     setRefreshing(true);
     fetchFavorites();
   };
+
+  const displayedFavorites = useMemo(() => {
+    return favorites.filter((item) => favoriteIds.has(item.id));
+  }, [favorites, favoriteIds]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
@@ -94,7 +100,7 @@ export default function FavoritesScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Đang tải danh sách yêu thích...</Text>
         </View>
-      ) : favorites.length === 0 ? (
+      ) : displayedFavorites.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconCircle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Ionicons name="heart-dislike-outline" size={48} color={colors.textSecondary} />
@@ -111,7 +117,7 @@ export default function FavoritesScreen() {
         </View>
       ) : (
         <FlatList
-          data={favorites}
+          data={displayedFavorites}
           keyExtractor={(item) => item.id.toString()}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
