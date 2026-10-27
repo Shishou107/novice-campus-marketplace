@@ -1,14 +1,26 @@
 import { Stack } from 'expo-router';
 import { AuthProvider } from '@/context/AuthContext';
+import { NetworkProvider } from '@/context/NetworkContext';
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="tabs" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
-      </Stack>
-    </AuthProvider>
+    <NetworkProvider>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="tabs" />
+          <Stack.Screen name="auth" />
+          <Stack.Screen name="product/[id]" />
+          <Stack.Screen name="cart" />
+          <Stack.Screen name="favorites" />
+          <Stack.Screen
+            name="meetup-modal"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+        </Stack>
+      </AuthProvider>
+    </NetworkProvider>
   );
 }

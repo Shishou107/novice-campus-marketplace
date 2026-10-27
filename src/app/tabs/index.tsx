@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,26 +13,27 @@ import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
+import { NetworkBanner } from '@/components/NetworkBanner';
 import { ProductCard } from '@/components/ProductCard';
-import { Radius, Spacing, Typography } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getProducts } from '@/services/db';
-import { ProductWithSeller } from '@/types';
+import { CATEGORIES, ProductCategory, ProductWithSeller } from '@/types';
 
 export default function HomeScreen() {
   const colors = useTheme();
   const { user } = useAuth();
 
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all' | 'free'>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // Lấy dữ liệu sản phẩm trực tiếp từ SQLite (chỉ lấy đồ available)
   const fetchProducts = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     try {
-      const data = await getProducts({ status: 'available' });
+      const data = await getProducts({ status: 'available', currentUserId: user?.id });
       setProducts(data);
     } catch (error) {
       console.error('Lỗi khi tải danh sách sản phẩm:', error);
@@ -40,9 +41,8 @@ export default function HomeScreen() {
       setIsLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
-  // Tự động load dữ liệu mới nhất khi người dùng mở hoặc chuyển tab quay lại
   useFocusEffect(
     useCallback(() => {
       fetchProducts(false);
@@ -55,35 +55,34 @@ export default function HomeScreen() {
   }, [fetchProducts]);
 
   const handleNavigateToExplore = () => {
-    try {
-      router.push('/(tabs)/explore' as any);
-    } catch {
-      router.push('/tabs/explore' as any);
-    }
+    router.push('/(tabs)/explore' as any);
   };
 
   const handleNavigateToSell = () => {
-    try {
-      router.push('/(tabs)/sell' as any);
-    } catch {
-      router.push('/tabs/sell' as any);
-    }
+    router.push('/(tabs)/sell' as any);
   };
 
   const handleProductPress = (productId: number) => {
     router.push(('/product/' + productId) as any);
   };
 
-  // Cân bằng lưới 2 cột: thêm phần tử đệm nếu số lượng lẻ để không bị giãn ô cuối
-  const formattedProducts = React.useMemo(() => {
-    if (products.length % 2 !== 0) {
+  // Filter products by selected quick category
+  const filteredProducts = useMemo(() => {
+    if (selectedCategory === 'all') return products;
+    if (selectedCategory === 'free') return products.filter((p) => p.price === 0);
+    return products.filter((p) => p.category === selectedCategory);
+  }, [products, selectedCategory]);
+
+  const formattedProducts = useMemo(() => {
+    if (filteredProducts.length % 2 !== 0) {
       return [
-        ...products,
+        ...filteredProducts,
         {
           id: -1,
           userId: -1,
           title: '',
           price: 0,
+          stock: 0,
           category: 'other' as any,
           location: '',
           status: 'available' as any,
@@ -93,54 +92,65 @@ export default function HomeScreen() {
         } as ProductWithSeller,
       ];
     }
-    return products;
-  }, [products]);
+    return filteredProducts;
+  }, [filteredProducts]);
 
-  // Header của danh sách bao gồm Lời chào, Search bar giả và Banner
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* 1. Header Trang chủ: Lời chào kèm tên người dùng nếu đã đăng nhập */}
+      {/* 1. Header Greeting with DNTU branding */}
       <View style={styles.greetingSection}>
         <View style={styles.greetingTextContainer}>
+          <View style={[styles.brandPill, { borderColor: colors.primary }]}>
+            <Text style={[styles.brandPillText, { color: colors.primary }]}>DNTU CAMPUS MARKETPLACE</Text>
+          </View>
           <Text style={[styles.greetingTitle, { color: colors.text }]}>
-            Chợ sinh viên Novice 👋
+            {user ? `Chào ${user.name} 👋` : 'Chợ sinh viên DNTU 👋'}
           </Text>
-          {user ? (
-            <View style={styles.userBadgeRow}>
-              <Ionicons name="sparkles" size={14} color={colors.primary} />
-              <Text style={[styles.greetingUserText, { color: colors.primary }]}>
-                Xin chào, {user.name}
-              </Text>
-            </View>
-          ) : (
-            <Text style={[styles.greetingSubText, { color: colors.textSecondary }]}>
-              Khám phá đồ dùng ký túc xá giá sinh viên
-            </Text>
-          )}
+          <Text style={[styles.greetingSubText, { color: colors.textSecondary }]}>
+            Mua bán giáo trình & đồ KTX trong khuôn viên trường
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.headerAvatarButton, { backgroundColor: colors.primaryLight }]}
-          activeOpacity={0.8}
-          onPress={() => {
-            try {
-              router.push('/(tabs)/profile' as any);
-            } catch {
-              router.push('/tabs/profile' as any);
-            }
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Trang cá nhân"
-        >
-          <Ionicons
-            name={user ? 'person' : 'person-outline'}
-            size={20}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
+        {/* Header Right Action Icons */}
+        <View style={styles.headerIconsRow}>
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/favorites' as any)}
+            accessibilityLabel="Mục yêu thích"
+          >
+            <Ionicons name="heart-outline" size={18} color={colors.price} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/cart' as any)}
+            accessibilityLabel="Giỏ hàng"
+          >
+            <Ionicons name="cart-outline" size={18} color={colors.text} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.headerIconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(tabs)/profile' as any)}
+            accessibilityLabel="Hồ sơ sinh viên"
+          >
+            <Ionicons name={user ? 'person' : 'person-outline'} size={17} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* 1. Thanh tìm kiếm giả (Search input thanh lịch chuyển sang tab Khám phá) */}
+      {/* 2. DNTU Campus Broadcast Ticker */}
+      <View style={[styles.tickerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.tickerDot, { backgroundColor: colors.accent }]} />
+        <Text style={[styles.tickerText, { color: colors.text }]} numberOfLines={1}>
+          <Text style={{ fontWeight: '800' }}>TIN NHANH DNTU:</Text> Pass sách ĐHBK • Hẹn gặp tại Cổng A, Thư viện, Căn tin • Tặng đồ 0đ dọn KTX
+        </Text>
+      </View>
+
+      {/* 3. Search Bar Button */}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={handleNavigateToExplore}
@@ -151,97 +161,146 @@ export default function HomeScreen() {
             borderColor: colors.border,
           },
         ]}
-        accessibilityRole="button"
-        accessibilityLabel="Chạm để chuyển sang tab Khám phá"
       >
         <Ionicons
           name="search-outline"
-          size={19}
+          size={18}
           color={colors.textSecondary}
           style={styles.searchIcon}
         />
         <Text style={[styles.searchPlaceholder, { color: colors.textSecondary }]}>
-          Tìm giáo trình, đồ gia dụng, xe máy KTX...
+          Tìm giáo trình DNTU, máy tính, đồ KTX...
         </Text>
-        <View style={[styles.searchActionBadge, { backgroundColor: colors.primaryLight }]}>
-          <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+        <View style={[styles.searchActionBadge, { backgroundColor: colors.primary }]}>
+          <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
         </View>
       </TouchableOpacity>
 
-      {/* 2. Banner nổi bật nhỏ gọn gàng */}
-      <View
-        style={[
-          styles.bannerCard,
-          {
-            backgroundColor: colors.primaryLight,
-            borderColor: colors.primary + '30',
-          },
-        ]}
-      >
-        <View style={[styles.bannerIconBox, { backgroundColor: colors.primary }]}>
-          <Ionicons name="school" size={20} color="#FFFFFF" />
-        </View>
-        <View style={styles.bannerContent}>
-          <View style={styles.bannerTagRow}>
-            <Text style={[styles.bannerTag, { color: colors.primary }]}>
-              DÀNH CHO SINH VIÊN KTX
-            </Text>
+      {/* 4. Category Quick Filter Bar */}
+      <View style={styles.categoriesRow}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={[
+            { id: 'all' as const, label: 'Tất cả' },
+            { id: 'free' as const, label: '🎁 Đồ tặng 0đ' },
+            ...CATEGORIES,
+          ]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.categoryScroll}
+          renderItem={({ item }) => {
+            const isSelected = selectedCategory === item.id;
+            const isFree = item.id === 'free';
+            return (
+              <TouchableOpacity
+                onPress={() => setSelectedCategory(item.id)}
+                style={[
+                  styles.categoryChip,
+                  {
+                    backgroundColor: isSelected
+                      ? isFree
+                        ? colors.acid
+                        : colors.primary
+                      : colors.surface,
+                    borderColor: isSelected
+                      ? isFree
+                        ? colors.border
+                        : colors.primary
+                      : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    {
+                      color: isSelected
+                        ? isFree
+                          ? '#12140F'
+                          : colors.white
+                        : colors.text,
+                      fontWeight: isSelected ? '800' : '600',
+                    },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+
+      {/* 5. Hero Promo Card DNTU */}
+      <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.heroContent}>
+          <View style={[styles.heroBadge, { backgroundColor: colors.butter, borderColor: colors.border }]}>
+            <Text style={styles.heroBadgeText}>SƠ ĐỒ HẸN GẶP NỘI BỘ DNTU</Text>
           </View>
-          <Text style={[styles.bannerTitle, { color: colors.text }]}>
-            Trao đổi giáo trình & đồ dùng sinh viên tiết kiệm, uy tín trong ký túc xá
+          <Text style={[styles.heroTitle, { color: colors.text }]}>
+            Giao nhận an toàn ngay trong trường
           </Text>
+          <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
+            Thống nhất điểm hẹn tại Cổng A, Thư viện, Căn tin... Kiểm tra đồ trực tiếp trước khi thanh toán.
+          </Text>
+          <TouchableOpacity
+            onPress={handleNavigateToSell}
+            style={[styles.heroActionBtn, { backgroundColor: colors.primary }]}
+          >
+            <Ionicons name="add-circle" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.heroActionBtnText}>Đăng món đồ thanh lý (0đ phí)</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Tiêu đề phần danh sách sản phẩm */}
+      {/* 6. Section Header */}
       <View style={styles.listSectionHeader}>
         <View style={styles.listTitleRow}>
-          <Ionicons name="flame" size={20} color={colors.price} />
+          <Ionicons name="flash" size={18} color={colors.primary} />
           <Text style={[styles.listSectionTitle, { color: colors.text }]}>
-            Tin đăng mới nhất
+            {selectedCategory === 'all'
+              ? 'Món đồ mới đăng tại DNTU'
+              : selectedCategory === 'free'
+              ? 'Đồ tặng miễn phí 0đ'
+              : CATEGORIES.find((c) => c.id === selectedCategory)?.label || 'Tin đăng'}
           </Text>
         </View>
-        {products.length > 0 && (
-          <Text style={[styles.listCountText, { color: colors.textSecondary }]}>
-            {products.length} món đồ
-          </Text>
-        )}
+        <Text style={[styles.listCountText, { color: colors.textSecondary }]}>
+          {filteredProducts.length} món đồ
+        </Text>
       </View>
     </View>
   );
 
-  // 3. Giao diện thông báo dễ thương khi danh sách sản phẩm trống
   const renderEmptyComponent = () => {
     if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Đang tải dữ liệu chợ sinh viên...
+            Đang tải dữ liệu Chợ sinh viên DNTU...
           </Text>
         </View>
       );
     }
 
     return (
-      <View style={styles.emptyContainer}>
-        <View style={[styles.emptyIconCircle, { backgroundColor: colors.primaryLight }]}>
-          <Ionicons name="storefront-outline" size={48} color={colors.primary} />
+      <View style={[styles.emptyContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.emptyIconCircle, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}>
+          <Ionicons name="storefront-outline" size={40} color={colors.primary} />
         </View>
         <Text style={[styles.emptyTitle, { color: colors.text }]}>
-          Chưa có món đồ nào
+          {selectedCategory !== 'all' ? 'Chưa có món đồ trong danh mục này' : 'Chưa có món đồ nào'}
         </Text>
         <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-          Chưa có món đồ nào, bạn hãy là người đầu tiên đăng bán nhé!
+          Bạn có giáo trình cũ hay đồ dùng KTX không dùng nữa? Hãy là người đầu tiên đăng bán nhé!
         </Text>
         <TouchableOpacity
           activeOpacity={0.85}
           style={[styles.sellButton, { backgroundColor: colors.primary }]}
           onPress={handleNavigateToSell}
-          accessibilityRole="button"
-          accessibilityLabel="Chuyển sang trang đăng bán"
         >
-          <Ionicons name="add-circle" size={20} color="#FFFFFF" style={styles.sellButtonIcon} />
+          <Ionicons name="add-circle" size={18} color="#FFFFFF" style={styles.sellButtonIcon} />
           <Text style={styles.sellButtonText}>Đăng bán ngay</Text>
         </TouchableOpacity>
       </View>
@@ -254,6 +313,7 @@ export default function HomeScreen() {
       style={[styles.screen, { backgroundColor: colors.background }]}
     >
       <StatusBar style="auto" />
+      <NetworkBanner />
       <FlatList
         data={isLoading && products.length === 0 ? [] : formattedProducts}
         keyExtractor={(item) => item.id.toString()}
@@ -280,6 +340,7 @@ export default function HomeScreen() {
               <ProductCard
                 product={item}
                 onPress={() => handleProductPress(item.id)}
+                onFavoriteChanged={() => fetchProducts(false)}
               />
             </View>
           );
@@ -298,60 +359,80 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
     paddingBottom: Spacing.xs,
+    gap: Spacing.sm,
   },
-  // 1. Header greeting
   greetingSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: 2,
   },
   greetingTextContainer: {
     flex: 1,
     marginRight: Spacing.sm,
   },
+  brandPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  brandPillText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
   greetingTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  userBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 4,
-  },
-  greetingUserText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   greetingSubText: {
-    fontSize: 13,
+    fontSize: 12.5,
     marginTop: 2,
   },
-  headerAvatarButton: {
-    width: 42,
-    height: 42,
+  headerIconsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerIconBtn: {
+    width: 36,
+    height: 36,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
   },
-  // 1. Thanh tìm kiếm giả (Search input thanh lịch)
+  tickerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+    borderRadius: Radius.sm,
+    borderWidth: 1.5,
+    gap: 8,
+  },
+  tickerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.full,
+  },
+  tickerText: {
+    flex: 1,
+    fontSize: 11.5,
+  },
   fakeSearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 46,
     paddingHorizontal: Spacing.md,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
   },
   searchIcon: {
     marginRight: Spacing.sm,
@@ -368,45 +449,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginLeft: Spacing.xs,
   },
-  // 2. Banner nổi bật
-  bannerCard: {
+  categoriesRow: {
+    marginTop: 2,
+  },
+  categoryScroll: {
+    gap: Spacing.xs + 2,
+    paddingVertical: 2,
+  },
+  categoryChip: {
+    paddingHorizontal: Spacing.sm + 4,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+  },
+  categoryChipText: {
+    fontSize: 12,
+  },
+  heroCard: {
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    padding: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  heroContent: {
+    gap: 6,
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+  },
+  heroBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '900',
+    color: '#12140F',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: -0.3,
+  },
+  heroSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  heroActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    marginBottom: Spacing.lg,
-    gap: Spacing.md,
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+    borderRadius: Radius.sm,
+    marginTop: 4,
   },
-  bannerIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerContent: {
-    flex: 1,
-  },
-  bannerTagRow: {
-    marginBottom: 2,
-  },
-  bannerTag: {
-    fontSize: 11,
+  heroActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 0.5,
   },
-  bannerTitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-  },
-  // Section Title
   listSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.xs,
   },
   listTitleRow: {
     flexDirection: 'row',
@@ -414,14 +522,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   listSectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   listCountText: {
     fontSize: 12,
-    fontWeight: '500',
   },
-  // 3. Grid 2 cột
   columnWrapper: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
@@ -433,56 +540,52 @@ const styles = StyleSheet.create({
   cardPlaceholder: {
     flex: 1,
   },
-  // Trạng thái trống (Empty state)
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl * 1.5,
-    paddingBottom: Spacing.xl,
+    paddingVertical: Spacing.xl,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    marginHorizontal: Spacing.md,
+    gap: Spacing.xs,
   },
   emptyIconCircle: {
-    width: 88,
-    height: 88,
+    width: 72,
+    height: 72,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.md,
+    borderWidth: 1.5,
+    marginBottom: Spacing.xs,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: Spacing.xs,
+    fontSize: 16,
+    fontWeight: '800',
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 12.5,
+    lineHeight: 18,
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
   sellButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 12,
-    borderRadius: Radius.full,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 10,
+    borderRadius: Radius.md,
   },
   sellButtonIcon: {
     marginRight: 6,
   },
   sellButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  // Loading
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',

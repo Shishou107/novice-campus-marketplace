@@ -1,9 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,77 +11,66 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
+import { NetworkBanner } from '@/components/NetworkBanner';
 import { ProductCard } from '@/components/ProductCard';
 import { Radius, Spacing, Typography } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getProducts } from '@/services/db';
 import { CATEGORIES, ProductCategory, ProductWithSeller } from '@/types';
 
-type CategoryFilter = ProductCategory | 'all';
+type PriceFilter = 'all' | 'free' | 'under50k' | '50k-200k' | 'above200k';
+type SortOption = 'newest' | 'priceAsc' | 'priceDesc';
 
-// Icon minh họa cho từng danh mục
-const CATEGORY_ICONS: Record<CategoryFilter, keyof typeof Ionicons.glyphMap> = {
-  all: 'apps-outline',
-  book: 'book-outline',
-  dorm: 'bed-outline',
-  tech: 'laptop-outline',
-  vehicle: 'bicycle-outline',
-  fashion: 'shirt-outline',
-  other: 'cube-outline',
-};
+const LOCATION_OPTIONS = [
+  'Tất cả vị trí',
+  'Thư viện DNTU (Tầng 1)',
+  'Căn tin & Tự học',
+  'Cổng chính DNTU (Cổng A)',
+  'Giảng đường A (DNTU)',
+  'Giảng đường B (DNTU)',
+  'Nhà thi đấu Thể thao DNTU',
+  'Khác',
+];
+
+const PRICE_OPTIONS: { id: PriceFilter; label: string }[] = [
+  { id: 'all', label: 'Mọi mức giá' },
+  { id: 'free', label: '🎁 Tặng 0đ' },
+  { id: 'under50k', label: '< 50.000đ' },
+  { id: '50k-200k', label: '50k - 200k' },
+  { id: 'above200k', label: '> 200.000đ' },
+];
 
 export default function ExploreScreen() {
   const colors = useTheme();
+  const { user } = useAuth();
 
-  // State tìm kiếm và lọc
-  const [keyword, setKeyword] = useState<string>('');
-  const [debouncedKeyword, setDebouncedKeyword] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
-
-  // State dữ liệu và giao diện
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // 1. Debounce 300ms cho ô tìm kiếm từ khóa
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedKeyword(keyword.trim());
-    }, 300);
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
+  const [selectedLocation, setSelectedLocation] = useState<string>('Tất cả vị trí');
+  const [selectedPrice, setSelectedPrice] = useState<PriceFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-    return () => clearTimeout(timer);
-  }, [keyword]);
+  const fetchProducts = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
+    try {
+      const data = await getProducts({ status: 'available', currentUserId: user?.id });
+      setProducts(data);
+    } catch (error) {
+      console.error('Lỗi khi tải dữ liệu khám phá:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  }, [user]);
 
-  // 3. Truy vấn sản phẩm trực tiếp từ SQLite Database
-  const fetchProducts = useCallback(
-    async (showLoading = true) => {
-      if (showLoading) setIsLoading(true);
-      try {
-        const data = await getProducts({
-          category: selectedCategory === 'all' ? undefined : selectedCategory,
-          search: debouncedKeyword.length > 0 ? debouncedKeyword : undefined,
-          status: 'available',
-        });
-        setProducts(data);
-      } catch (error) {
-        console.error('Lỗi khi tìm kiếm sản phẩm:', error);
-      } finally {
-        setIsLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [selectedCategory, debouncedKeyword]
-  );
-
-  // Kích hoạt tìm kiếm mỗi khi debounceKeyword hoặc selectedCategory thay đổi
-  useEffect(() => {
-    fetchProducts(true);
-  }, [fetchProducts]);
-
-  // Tự động cập nhật dữ liệu khi tab được focus
   useFocusEffect(
     useCallback(() => {
       fetchProducts(false);
@@ -94,439 +82,519 @@ export default function ExploreScreen() {
     fetchProducts(false);
   }, [fetchProducts]);
 
-  const handleClearSearch = () => {
-    setKeyword('');
-    setDebouncedKeyword('');
-  };
+  // Client-side filtering and sorting for instant responsive UI
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter((item) => {
+        // 1. Text Search Filter
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          const matchTitle = item.title.toLowerCase().includes(q);
+          const matchDesc = item.description?.toLowerCase().includes(q) ?? false;
+          const matchSeller = item.sellerName.toLowerCase().includes(q);
+          if (!matchTitle && !matchDesc && !matchSeller) return false;
+        }
 
-  const handleResetFilters = () => {
-    setKeyword('');
-    setDebouncedKeyword('');
+        // 2. Category Filter
+        if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+          return false;
+        }
+
+        // 3. Location Filter
+        if (selectedLocation !== 'Tất cả vị trí') {
+          if (!item.location.toLowerCase().includes(selectedLocation.toLowerCase().split(' ')[0])) {
+            if (item.location !== selectedLocation) return false;
+          }
+        }
+
+        // 4. Price Filter
+        if (selectedPrice === 'free' && item.price !== 0) return false;
+        if (selectedPrice === 'under50k' && (item.price === 0 || item.price >= 50000)) return false;
+        if (selectedPrice === '50k-200k' && (item.price < 50000 || item.price > 200000)) return false;
+        if (selectedPrice === 'above200k' && item.price <= 200000) return false;
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'priceAsc') return a.price - b.price;
+        if (sortBy === 'priceDesc') return b.price - a.price;
+        return (b.id || 0) - (a.id || 0); // newest default
+      });
+  }, [products, searchQuery, selectedCategory, selectedLocation, selectedPrice, sortBy]);
+
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    selectedCategory !== 'all' ||
+    selectedLocation !== 'Tất cả vị trí' ||
+    selectedPrice !== 'all';
+
+  const resetAllFilters = () => {
+    setSearchQuery('');
     setSelectedCategory('all');
+    setSelectedLocation('Tất cả vị trí');
+    setSelectedPrice('all');
+    setSortBy('newest');
   };
 
   const handleProductPress = (productId: number) => {
     router.push(('/product/' + productId) as any);
   };
 
-  // Cân bằng lưới 2 cột: thêm phần tử đệm nếu số lượng lẻ
-  const formattedProducts = useMemo(() => {
-    if (products.length % 2 !== 0) {
-      return [
-        ...products,
-        {
-          id: -1,
-          userId: -1,
-          title: '',
-          price: 0,
-          category: 'other' as ProductCategory,
-          location: '',
-          status: 'available' as const,
-          createdAt: '',
-          sellerName: '',
-          sellerStudentId: '',
-        } as ProductWithSeller,
-      ];
-    }
-    return products;
-  }, [products]);
-
-  // Header của trang chứa Ô tìm kiếm, Thanh lọc danh mục và Dòng đếm kết quả
+  // Header Component for FlatList
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Tiêu đề màn hình */}
+      {/* Top Title Banner & Quick Links */}
       <View style={styles.titleSection}>
-        <Text style={[styles.screenTitle, { color: colors.text }]}>
-          Khám phá & Tìm kiếm 🔍
-        </Text>
-        <Text style={[styles.screenSubtitle, { color: colors.textSecondary }]}>
-          Tra cứu giáo trình, đồ KTX & đồ sinh viên giá rẻ
+        <View style={styles.topBarRow}>
+          <View style={styles.brandBadge}>
+            <Text style={[styles.brandBadgeText, { color: colors.primary }]}>DNTU CAMPUS EXPLORE</Text>
+          </View>
+          <View style={styles.topIconGroup}>
+            <TouchableOpacity
+              onPress={() => router.push('/favorites' as any)}
+              style={[styles.headerIconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              accessibilityLabel="Danh sách yêu thích"
+            >
+              <Ionicons name="heart-outline" size={19} color={colors.price} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/cart' as any)}
+              style={[styles.headerIconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              accessibilityLabel="Giỏ hàng"
+            >
+              <Ionicons name="cart-outline" size={19} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <Text style={[styles.mainTitle, { color: colors.text }]}>Khám phá đồ sinh viên</Text>
+        <Text style={[styles.mainSubtitle, { color: colors.textSecondary }]}>
+          Tìm giáo trình DNTU, tài liệu học phần và phụ kiện sinh viên giá rẻ
         </Text>
       </View>
 
-      {/* 1. Ô tìm kiếm (SearchBar) với icon kính lúp và nút xóa nhanh */}
-      <View
-        style={[
-          styles.searchBarContainer,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color={colors.textSecondary}
-          style={styles.searchIcon}
-        />
+      {/* Styled Search Bar with Retro Border */}
+      <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Ionicons name="search-outline" size={20} color={colors.textSecondary} style={{ marginLeft: Spacing.xs }} />
         <TextInput
-          value={keyword}
-          onChangeText={setKeyword}
-          placeholder="Tìm theo tên giáo trình, đồ dùng..."
+          placeholder="Tìm tên môn học, giáo trình DNTU, đồ dùng..."
           placeholderTextColor={colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
           style={[styles.searchInput, { color: colors.text }]}
           returnKeyType="search"
-          autoCapitalize="none"
-          autoCorrect={false}
-          clearButtonMode="never"
         />
-        {keyword.length > 0 && (
-          <TouchableOpacity
-            onPress={handleClearSearch}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.clearButton}
-            accessibilityRole="button"
-            accessibilityLabel="Xóa từ khóa"
-          >
-            <Ionicons name="close-circle" size={19} color={colors.textSecondary} />
+        {searchQuery.length > 0 ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
-      {/* 2. Thanh lọc Danh mục: Hàng cuộn ngang chứa "Tất cả" + CATEGORIES */}
-      <View style={styles.categoriesSection}>
-        <ScrollView
+      {/* Category Pills Slider */}
+      <View style={styles.filterSection}>
+        <Text style={[styles.sectionHeading, { color: colors.text }]}>Danh mục</Text>
+        <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScrollContent}
-        >
-          {/* Chip "Tất cả" */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setSelectedCategory('all')}
-            style={[
-              styles.categoryChip,
-              selectedCategory === 'all'
-                ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                : { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <Ionicons
-              name={CATEGORY_ICONS.all}
-              size={15}
-              color={selectedCategory === 'all' ? '#FFFFFF' : colors.textSecondary}
-              style={styles.chipIcon}
-            />
-            <Text
-              style={[
-                styles.categoryChipText,
-                selectedCategory === 'all'
-                  ? styles.categoryChipTextActive
-                  : { color: colors.text },
-              ]}
-            >
-              Tất cả
-            </Text>
-          </TouchableOpacity>
-
-          {/* Danh sách các chip từ CATEGORIES */}
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
-            const iconName = CATEGORY_ICONS[cat.id] || 'cube-outline';
+          data={[{ id: 'all' as const, label: 'Tất cả' }, ...CATEGORIES]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.chipsScroll}
+          renderItem={({ item }) => {
+            const isSelected = selectedCategory === item.id;
             return (
               <TouchableOpacity
-                key={cat.id}
-                activeOpacity={0.8}
-                onPress={() => setSelectedCategory(cat.id)}
+                onPress={() => setSelectedCategory(item.id)}
                 style={[
-                  styles.categoryChip,
-                  isSelected
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : { backgroundColor: colors.surface, borderColor: colors.border },
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
+                  },
                 ]}
               >
-                <Ionicons
-                  name={iconName}
-                  size={15}
-                  color={isSelected ? '#FFFFFF' : colors.textSecondary}
-                  style={styles.chipIcon}
-                />
                 <Text
                   style={[
-                    styles.categoryChipText,
-                    isSelected
-                      ? styles.categoryChipTextActive
-                      : { color: colors.text },
+                    styles.filterChipText,
+                    {
+                      color: isSelected ? colors.white : colors.text,
+                      fontWeight: isSelected ? '700' : '500',
+                    },
                   ]}
                 >
-                  {cat.label}
+                  {item.label}
                 </Text>
               </TouchableOpacity>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       </View>
 
-      {/* 3. Dòng đếm kết quả: "Tìm thấy X món đồ" */}
-      <View style={styles.resultMetaRow}>
-        <Text style={[styles.resultCountText, { color: colors.textSecondary }]}>
-          Tìm thấy <Text style={[styles.resultCountHighlight, { color: colors.primary }]}>{products.length}</Text> món đồ
-          {selectedCategory !== 'all' && (
-            <Text> • {CATEGORIES.find((c) => c.id === selectedCategory)?.label}</Text>
-          )}
-          {debouncedKeyword.length > 0 && (
-            <Text> cho "{debouncedKeyword}"</Text>
-          )}
-        </Text>
+      {/* Location Filter Pills */}
+      <View style={styles.filterSection}>
+        <Text style={[styles.sectionHeading, { color: colors.text }]}>Địa điểm hẹn trong trường</Text>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={LOCATION_OPTIONS}
+          keyExtractor={(item) => item}
+          contentContainerStyle={styles.chipsScroll}
+          renderItem={({ item }) => {
+            const isSelected = selectedLocation === item;
+            return (
+              <TouchableOpacity
+                onPress={() => setSelectedLocation(item)}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected ? colors.surface : colors.background,
+                    borderColor: isSelected ? colors.text : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={12}
+                  color={isSelected ? colors.price : colors.textSecondary}
+                  style={{ marginRight: 3 }}
+                />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: isSelected ? colors.text : colors.textSecondary,
+                      fontWeight: isSelected ? '700' : '500',
+                    },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
 
-        {(selectedCategory !== 'all' || debouncedKeyword.length > 0) && (
-          <TouchableOpacity onPress={handleResetFilters} style={styles.resetButton}>
-            <Text style={[styles.resetButtonText, { color: colors.primary }]}>
-              Đặt lại
+      {/* Price & Sort Row */}
+      <View style={styles.filterSection}>
+        <View style={styles.priceAndSortRow}>
+          <Text style={[styles.sectionHeading, { color: colors.text }]}>Mức giá</Text>
+          {/* Quick Sort Toggle */}
+          <TouchableOpacity
+            onPress={() => {
+              if (sortBy === 'newest') setSortBy('priceAsc');
+              else if (sortBy === 'priceAsc') setSortBy('priceDesc');
+              else setSortBy('newest');
+            }}
+            style={[styles.sortButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          >
+            <Ionicons name="swap-vertical" size={13} color={colors.primary} />
+            <Text style={[styles.sortText, { color: colors.text }]}>
+              {sortBy === 'newest' ? 'Mới nhất' : sortBy === 'priceAsc' ? 'Giá thấp -> cao' : 'Giá cao -> thấp'}
             </Text>
           </TouchableOpacity>
-        )}
+        </View>
+
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={PRICE_OPTIONS}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.chipsScroll}
+          renderItem={({ item }) => {
+            const isSelected = selectedPrice === item.id;
+            const isFreeChoice = item.id === 'free';
+            return (
+              <TouchableOpacity
+                onPress={() => setSelectedPrice(item.id)}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: isSelected
+                      ? isFreeChoice
+                        ? colors.acid
+                        : colors.text
+                      : colors.surface,
+                    borderColor: isSelected ? colors.border : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    {
+                      color: isSelected
+                        ? isFreeChoice
+                          ? '#12140F'
+                          : colors.white
+                        : colors.text,
+                      fontWeight: isSelected ? '800' : '500',
+                    },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+
+      {/* Results Header Status */}
+      <View style={styles.resultStatsRow}>
+        <Text style={[styles.resultCount, { color: colors.textSecondary }]}>
+          Tìm thấy <Text style={{ fontWeight: '800', color: colors.text }}>{filteredProducts.length}</Text> món đồ
+        </Text>
+
+        {hasActiveFilters ? (
+          <TouchableOpacity onPress={resetAllFilters} style={styles.resetBtn}>
+            <Ionicons name="reload-outline" size={13} color={colors.primary} />
+            <Text style={[styles.resetText, { color: colors.primary }]}>Xóa bộ lọc</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
 
-  // Giao diện khi không tìm thấy kết quả
-  const renderEmptyComponent = () => {
-    if (isLoading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Đang tìm kiếm đồ dùng...
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={[styles.emptyIconCircle, { backgroundColor: colors.primaryLight }]}>
-          <Ionicons name="search" size={42} color={colors.primary} />
-        </View>
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>
-          Không tìm thấy đồ dùng phù hợp với từ khóa của bạn
-        </Text>
-        <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
-          Hãy thử tìm với từ khóa chung chung hơn hoặc chọn danh mục "Tất cả".
-        </Text>
-        {(keyword.length > 0 || selectedCategory !== 'all') && (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleResetFilters}
-            style={[styles.resetActionBtn, { backgroundColor: colors.primary }]}
-          >
-            <Ionicons name="refresh" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.resetActionBtnText}>Xem tất cả đồ dùng</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
   return (
-    <SafeAreaView
-      edges={['top', 'left', 'right']}
-      style={[styles.screen, { backgroundColor: colors.background }]}
-    >
-      <StatusBar style="auto" />
-      <FlatList
-        data={isLoading && products.length === 0 ? [] : formattedProducts}
-        keyExtractor={(item) => item.id.toString()}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={styles.flatListContent}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyComponent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-        renderItem={({ item }) => {
-          if (item.id === -1) {
-            return <View style={styles.cardPlaceholder} />;
-          }
-          return (
-            <View style={styles.cardItemWrapper}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Network Offline / Wi-Fi DNTU State Banner */}
+      <NetworkBanner />
+
+      {isLoading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Đang tải kho đồ DNTU...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={renderHeader}
+          renderItem={({ item }) => (
+            <View style={styles.cardWrapper}>
               <ProductCard
                 product={item}
                 onPress={() => handleProductPress(item.id)}
+                onFavoriteChanged={() => fetchProducts(false)}
               />
             </View>
-          );
-        }}
-      />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          ListEmptyComponent={
+            <View style={[styles.emptyContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="search" size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>Không tìm thấy món đồ phù hợp</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                Thử thay đổi từ khóa tìm kiếm hoặc bấm xóa bộ lọc để xem tất cả.
+              </Text>
+              <TouchableOpacity
+                onPress={resetAllFilters}
+                style={[styles.emptyResetBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text style={styles.emptyResetText}>Xem tất cả món đồ</Text>
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  container: {
     flex: 1,
   },
-  flatListContent: {
-    paddingBottom: Spacing.xl * 2,
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: Spacing.sm,
+    ...Typography.body,
   },
   headerContainer: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.md,
   },
   titleSection: {
-    marginBottom: Spacing.sm,
+    gap: 4,
   },
-  screenTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  screenSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  // 1. Ô tìm kiếm (SearchBar)
-  searchBarContainer: {
+  topBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 46,
-    paddingHorizontal: Spacing.md,
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  topIconGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: Radius.full,
     borderWidth: 1,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    borderColor: '#3448EE',
   },
-  searchIcon: {
-    marginRight: Spacing.sm,
+  brandBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  mainTitle: {
+    ...Typography.title,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  mainSubtitle: {
+    ...Typography.body,
+    fontSize: 13,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.sm,
+    height: 48,
+    gap: Spacing.xs,
   },
   searchInput: {
     flex: 1,
-    height: '100%',
     fontSize: 14,
+    fontWeight: '500',
     paddingVertical: 0,
   },
-  clearButton: {
-    padding: 2,
-    marginLeft: Spacing.xs,
+  clearSearchBtn: {
+    padding: Spacing.xs,
   },
-  // 2. Thanh lọc danh mục
-  categoriesSection: {
-    marginBottom: Spacing.sm,
-    marginHorizontal: -Spacing.md, // Cho phép vuốt tràn sang 2 mép
+  filterSection: {
+    gap: Spacing.xs + 2,
   },
-  categoryScrollContent: {
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.xs,
+  sectionHeading: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
-  categoryChip: {
+  chipsScroll: {
+    gap: Spacing.xs + 2,
+    paddingVertical: 2,
+  },
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.md - 2,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
+    borderWidth: 1.5,
+  },
+  filterChipText: {
+    fontSize: 12,
+  },
+  priceAndSortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
     borderRadius: Radius.full,
     borderWidth: 1,
+    gap: 4,
   },
-  chipIcon: {
-    marginRight: 5,
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  // 3. Dòng đếm kết quả
-  resultMetaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
-    paddingHorizontal: 2,
-  },
-  resultCountText: {
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  resultCountHighlight: {
+  sortText: {
+    fontSize: 11,
     fontWeight: '700',
   },
-  resetButton: {
-    paddingVertical: 2,
-    paddingHorizontal: Spacing.xs,
+  resultStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
   },
-  resetButtonText: {
+  resultCount: {
     fontSize: 12,
-    fontWeight: '600',
   },
-  // 3. Grid 2 cột
-  columnWrapper: {
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  resetText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  listContent: {
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xl + 20,
   },
-  cardItemWrapper: {
-    flex: 1,
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
-  cardPlaceholder: {
-    flex: 1,
+  cardWrapper: {
+    width: '48.5%',
   },
-  // Empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xl * 1.5,
-    paddingBottom: Spacing.xl,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
+    padding: Spacing.xl,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    marginTop: Spacing.md,
+    gap: Spacing.xs,
   },
   emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...Typography.subTitle,
+    fontWeight: '800',
+    marginTop: Spacing.xs,
     textAlign: 'center',
-    marginBottom: Spacing.xs,
-    lineHeight: 22,
   },
   emptySubtitle: {
-    fontSize: 13,
-    lineHeight: 19,
+    ...Typography.body,
+    fontSize: 12,
     textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
-  resetActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
+  emptyResetBtn: {
+    paddingHorizontal: Spacing.md,
     paddingVertical: 10,
-    borderRadius: Radius.full,
+    borderRadius: Radius.md,
   },
-  resetActionBtnText: {
+  emptyResetText: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  // Loading
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xl * 2,
-    gap: Spacing.sm,
-  },
-  loadingText: {
+    fontWeight: '700',
     fontSize: 13,
   },
 });
+
+

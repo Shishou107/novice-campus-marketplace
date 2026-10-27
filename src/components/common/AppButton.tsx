@@ -14,7 +14,7 @@ import {
 
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 
-export type AppButtonVariant = 'primary' | 'outline' | 'danger';
+export type AppButtonVariant = 'primary' | 'outline' | 'danger' | 'acid' | 'secondary';
 
 export interface AppButtonProps {
   title: string;
@@ -38,7 +38,7 @@ export function AppButton({
   icon,
   style,
   textStyle,
-  activeOpacity = 0.7,
+  activeOpacity = 0.75,
   testID,
 }: AppButtonProps) {
   const colorScheme = useColorScheme();
@@ -46,14 +46,13 @@ export function AppButton({
 
   const isInteractive = !disabled && !loading;
 
-  // Determine button container styles based on variant
   const getVariantContainerStyle = (): ViewStyle => {
     switch (variant) {
       case 'outline':
         return {
           backgroundColor: 'transparent',
-          borderWidth: 1,
-          borderColor: colors.primary,
+          borderWidth: 1.5,
+          borderColor: colors.border,
         };
       case 'danger':
         return {
@@ -61,21 +60,36 @@ export function AppButton({
           borderWidth: 1,
           borderColor: colors.danger,
         };
+      case 'acid':
+        return {
+          backgroundColor: colors.acid,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+        };
+      case 'secondary':
+        return {
+          backgroundColor: colors.surface,
+          borderWidth: 1.5,
+          borderColor: colors.border,
+        };
       case 'primary':
       default:
         return {
           backgroundColor: colors.primary,
-          borderWidth: 1,
+          borderWidth: 1.5,
           borderColor: colors.primary,
         };
     }
   };
 
-  // Determine button text color based on variant
   const getVariantTextColor = (): string => {
     switch (variant) {
       case 'outline':
-        return colors.primary;
+        return colors.text;
+      case 'secondary':
+        return colors.text;
+      case 'acid':
+        return '#12140F';
       case 'danger':
       case 'primary':
       default:
@@ -98,16 +112,23 @@ export function AppButton({
         style,
       ]}
       accessibilityRole="button"
-      accessibilityState={{ disabled: !isInteractive, busy: loading }}
+      accessibilityState={{ disabled: !isInteractive }}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={textColor} />
+        <ActivityIndicator
+          size="small"
+          color={textColor}
+          style={styles.spinner}
+        />
       ) : (
         <View style={styles.content}>
           {icon ? <View style={styles.iconContainer}>{icon}</View> : null}
           <Text
-            numberOfLines={1}
-            style={[styles.text, { color: textColor }, textStyle]}
+            style={[
+              styles.text,
+              { color: textColor },
+              textStyle,
+            ]}
           >
             {title}
           </Text>
@@ -119,19 +140,19 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   button: {
-    flexDirection: 'row',
+    minHeight: 48,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.sm + Spacing.xs, // 12px
-    paddingHorizontal: Spacing.md,           // 16px
-    minHeight: Spacing.xl + Spacing.md,      // 48px standard touch target
+    flexDirection: 'row',
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.xs + 2,
   },
   iconContainer: {
     alignItems: 'center',
@@ -139,9 +160,14 @@ const styles = StyleSheet.create({
   },
   text: {
     ...Typography.subTitle,
-    textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 15,
+    letterSpacing: -0.2,
   },
   disabled: {
     opacity: 0.5,
+  },
+  spinner: {
+    marginVertical: Spacing.xs,
   },
 });

@@ -5,21 +5,26 @@ import {
   Pressable,
   StyleSheet,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ProductWithSeller, CATEGORIES } from '@/types';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/hooks/use-theme';
+import { toggleFavorite } from '@/services/db';
 
 export interface ProductCardProps {
   product: ProductWithSeller;
   onPress: () => void;
+  onFavoriteChanged?: () => void;
 }
 
 /**
  * Format price in Vietnamese format with dot separator (e.g., 50.000 đ)
  */
 export const formatPrice = (price?: number | null): string => {
-  if (price === undefined || price === null || isNaN(price)) return '0 đ';
+  if (price === undefined || price === null || isNaN(price) || price === 0) return '0 đ';
   return Math.round(price).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' đ';
 };
 
@@ -42,9 +47,9 @@ export const formatRelativeTime = (timeInput?: string | number | Date | null): s
   const diffDay = Math.floor(diffHour / 24);
 
   if (diffMin < 1) return 'Vừa xong';
-  if (diffMin < 60) return `${diffMin} phút trước`;
-  if (diffHour < 24) return `${diffHour} giờ trước`;
-  if (diffDay < 7) return `${diffDay} ngày trước`;
+  if (diffMin < 60) return `${diffMin}m trước`;
+  if (diffHour < 24) return `${diffHour}h trước`;
+  if (diffDay < 7) return `${diffDay}d trước`;
 
   const day = date.getDate().toString().padStart(2, '0');
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -55,7 +60,7 @@ export const formatRelativeTime = (timeInput?: string | number | Date | null): s
  * Shorten full Vietnamese name for compact 2-column mobile cards
  */
 export const getShortSellerName = (name?: string): string => {
-  if (!name) return 'Sinh viên';
+  if (!name) return 'Sinh viên DNTU';
   const trimmed = name.trim();
   const parts = trimmed.split(/\s+/);
   if (parts.length > 2) {
@@ -64,15 +69,26 @@ export const getShortSellerName = (name?: string): string => {
   return trimmed;
 };
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onFavoriteChanged }) => {
+  const colors = useTheme();
+  const { user } = useAuth();
   const [imageError, setImageError] = useState(false);
+  const [isFav, setIsFav] = useState<boolean>(Boolean(product.isFavorited));
 
-  // Tag at corner: Location badge (e.g. "KTX Khu B") or Category label
   const categoryLabel = CATEGORIES.find((c) => c.id === product.category)?.label;
   const badgeText = product.location || categoryLabel || product.category;
   const sellerDisplayName = getShortSellerName(product.sellerName);
   const postTime = formatRelativeTime(product.createdAt);
   const hasValidImage = Boolean(product.imageUrl) && !imageError;
+  const isFree = product.price === 0;
+
+  const handleToggleFav = async () => {
+    if (!user) return;
+    const nextState = !isFav;
+    setIsFav(nextState);
+    await toggleFavorite(user.id, product.id);
+    onFavoriteChanged?.();
+  };
 
   return (
     <Pressable
@@ -81,11 +97,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
       accessibilityLabel={`${product.title}, giá ${formatPrice(product.price)}`}
       style={({ pressed }) => [
         styles.container,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          shadowColor: colors.cardShadow,
+        },
         pressed && styles.pressed,
       ]}
     >
-      {/* 1:1 Aspect ratio image / placeholder */}
-      <View style={styles.imageContainer}>
+      {/* Aspect ratio square container */}
+      <View style={[styles.imageContainer, { backgroundColor: colors.background }]}>
         {hasValidImage ? (
           <Image
             source={{ uri: product.imageUrl as string }}
@@ -97,50 +118,79 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
           <View style={styles.placeholderContainer}>
             <Ionicons
               name="book-outline"
-              size={36}
-              color={Colors.light.textSecondary}
+              size={32}
+              color={colors.textSecondary}
             />
-            <Text style={styles.placeholderText}>Đồ dùng SV</Text>
+            <Text style={[styles.placeholderText, { color: colors.textSecondary }]}>Đồ dùng DNTU</Text>
           </View>
         )}
 
-        {/* Small corner tag/badge: Category or Location (e.g. "KTX Khu B") */}
+        {/* Location tag with retro editorial badge */}
         {badgeText ? (
-          <View style={styles.badgeContainer}>
+          <View style={[styles.badgeContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Ionicons
               name="location-sharp"
               size={10}
-              color={Colors.light.white}
+              color={colors.primary}
               style={styles.badgeIcon}
             />
-            <Text style={styles.badgeText} numberOfLines={1}>
+            <Text style={[styles.badgeText, { color: colors.text }]} numberOfLines={1}>
               {badgeText}
             </Text>
+          </View>
+        ) : null}
+
+        {/* Favorite Heart Button */}
+        <TouchableOpacity
+          onPress={handleToggleFav}
+          style={[styles.favBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          accessibilityLabel="Lưu yêu thích"
+        >
+          <Ionicons
+            name={isFav ? 'heart' : 'heart-outline'}
+            size={13}
+            color={isFav ? colors.price : colors.textSecondary}
+          />
+        </TouchableOpacity>
+
+        {/* Acid Lime FREE Badge */}
+        {isFree ? (
+          <View style={[styles.freeTag, { backgroundColor: colors.acid, borderColor: colors.border }]}>
+            <Text style={styles.freeTagText}>0Đ TẶNG</Text>
           </View>
         ) : null}
       </View>
 
       {/* Details Container */}
       <View style={styles.contentContainer}>
-        {/* Price: Bold red Colors.light.price with dot separation */}
-        <Text style={styles.price} numberOfLines={1}>
-          {formatPrice(product.price)}
-        </Text>
+        {/* Price row */}
+        <View style={styles.priceRow}>
+          <Text
+            style={[
+              styles.price,
+              { color: isFree ? colors.success : colors.price },
+            ]}
+            numberOfLines={1}
+          >
+            {isFree ? 'Tặng miễn phí' : formatPrice(product.price)}
+          </Text>
+        </View>
 
         {/* Product Title: Max 2 lines */}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {product.title}
         </Text>
 
-        {/* Sub-row: Shortened seller name and post time */}
+        {/* Sub-row: Seller name and post time */}
         <View style={styles.subRow}>
-          <Text style={styles.sellerName} numberOfLines={1}>
+          <Ionicons name="person-circle-outline" size={13} color={colors.textSecondary} style={{ marginRight: 3 }} />
+          <Text style={[styles.sellerName, { color: colors.textSecondary }]} numberOfLines={1}>
             {sellerDisplayName}
           </Text>
           {postTime ? (
             <>
-              <Text style={styles.dotSeparator}>•</Text>
-              <Text style={styles.timeText} numberOfLines={1}>
+              <Text style={[styles.dotSeparator, { color: colors.textSecondary }]}>•</Text>
+              <Text style={[styles.timeText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {postTime}
               </Text>
             </>
@@ -152,93 +202,105 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress }) =>
 };
 
 const styles = StyleSheet.create({
-  // Responsive card container for 2-column grids
   container: {
     flex: 1,
-    backgroundColor: Colors.light.surface,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderWidth: 1.5,
     overflow: 'hidden',
-    shadowColor: Colors.light.cardShadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  // Smooth press feedback opacity
   pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.985 }],
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
   },
-  // 1:1 Aspect ratio square container
   imageContainer: {
     width: '100%',
-    aspectRatio: 1,
+    aspectRatio: 1.05,
     position: 'relative',
-    backgroundColor: Colors.light.background,
     overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
   },
-  // Fallback placeholder for student items
   placeholderContainer: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.light.background,
     gap: Spacing.xs,
   },
   placeholderText: {
     fontSize: 11,
     fontWeight: '500',
-    color: Colors.light.textSecondary,
   },
-  // Small top corner tag (category or location badge)
   badgeContainer: {
     position: 'absolute',
-    top: Spacing.sm,
-    left: Spacing.sm,
+    top: Spacing.xs + 2,
+    left: Spacing.xs + 2,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.xs + 3,
+    paddingVertical: 2,
     borderRadius: Radius.sm,
-    maxWidth: '85%',
+    borderWidth: 1,
+    maxWidth: '70%',
+  },
+  favBtn: {
+    position: 'absolute',
+    top: Spacing.xs + 2,
+    right: Spacing.xs + 2,
+    width: 26,
+    height: 26,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  freeTag: {
+    position: 'absolute',
+    bottom: Spacing.xs + 2,
+    right: Spacing.xs + 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+  },
+  freeTagText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    color: '#12140F',
+    letterSpacing: 0.6,
   },
   badgeIcon: {
     marginRight: 2,
   },
   badgeText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: Colors.light.white,
+    fontWeight: '700',
   },
-  // Body details
   contentContainer: {
     padding: Spacing.sm,
-    gap: Spacing.xs,
+    gap: Spacing.xs - 1,
   },
-  // Bold red price Colors.light.price
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   price: {
     fontSize: 15,
-    fontWeight: '700',
-    color: Colors.light.price,
-    letterSpacing: 0.2,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  // Maximum 2 lines product title Colors.light.text
   title: {
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '600',
-    color: Colors.light.text,
-    minHeight: 36, // Keep card heights aligned in 2-column grids
+    minHeight: 36,
   },
-  // Secondary metadata row
   subRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -248,16 +310,13 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 11,
     fontWeight: '500',
-    color: Colors.light.textSecondary,
   },
   dotSeparator: {
-    marginHorizontal: Spacing.xs,
+    marginHorizontal: Spacing.xs - 1,
     fontSize: 10,
-    color: Colors.light.textSecondary,
   },
   timeText: {
     fontSize: 11,
-    color: Colors.light.textSecondary,
   },
 });
 
