@@ -181,7 +181,7 @@ export default function CartScreen() {
           </Text>
           <AppButton
             title="Khám phá ngay"
-            onPress={() => router.push('/(tabs)/explore' as any)}
+            onPress={() => router.push('/tabs/explore' as any)}
             icon={<Ionicons name="compass-outline" size={18} color={colors.white} />}
             style={{ marginTop: Spacing.sm }}
           />
@@ -221,7 +221,7 @@ export default function CartScreen() {
                       {prod.title}
                     </Text>
                     <Text style={[styles.itemPrice, { color: prod.price === 0 ? colors.success : colors.price }]}>
-                      {prod.price === 0 ? 'Tặng 0đ' : formatPrice(prod.price)}
+                      {formatPrice(prod.price)}
                     </Text>
                     <Text style={[styles.itemStock, { color: colors.textSecondary }]}>
                       Tồn kho: còn {prod.stock} món • {prod.location}

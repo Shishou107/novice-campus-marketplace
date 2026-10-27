@@ -189,9 +189,7 @@ export default function ProductDetailScreen() {
     if (!product) return;
     try {
       await Share.share({
-        message: `[Chợ SV DNTU] Pass đồ: ${product.title} - Giá: ${
-          product.price === 0 ? 'Tặng 0đ' : `${product.price.toLocaleString('vi-VN')}đ`
-        } tại ${product.location}!`,
+        message: `[Chợ SV DNTU] Pass đồ: ${product.title} - Giá: ${product.price.toLocaleString('vi-VN')}đ tại ${product.location}!`,
       });
     } catch {
       // bỏ qua
@@ -271,7 +269,6 @@ export default function ProductDetailScreen() {
   }
 
   const categoryLabel = CATEGORIES.find((c) => c.id === product.category)?.label || product.category;
-  const isFree = product.price === 0;
   const isSold = product.status === 'sold';
 
   return (
@@ -358,16 +355,9 @@ export default function ProductDetailScreen() {
         {/* Pricing, Stock & Title Card */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.priceRow}>
-            {isFree ? (
-              <View style={[styles.acidFreeTag, { backgroundColor: colors.acid, borderColor: colors.border }]}>
-                <Ionicons name="gift-outline" size={16} color="#12140F" />
-                <Text style={styles.acidFreeText}>TẶNG 0Đ MIỄN PHÍ</Text>
-              </View>
-            ) : (
-              <Text style={[styles.priceLarge, { color: colors.price }]}>
-                {product.price.toLocaleString('vi-VN')} <Text style={styles.currency}>đ</Text>
-              </Text>
-            )}
+            <Text style={[styles.priceLarge, { color: colors.price }]}>
+              {product.price.toLocaleString('vi-VN')} <Text style={styles.currency}>đ</Text>
+            </Text>
 
             <View style={[styles.statusIndicator, { backgroundColor: isSold ? colors.border : colors.successLight }]}>
               <View

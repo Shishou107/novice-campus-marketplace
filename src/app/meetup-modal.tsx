@@ -168,7 +168,7 @@ export default function MeetupModalScreen() {
                   {product.title}
                 </Text>
                 <Text style={[styles.summaryPrice, { color: product.price === 0 ? colors.success : colors.price }]}>
-                  {product.price === 0 ? 'Tặng 0đ' : formatPrice(product.price)} • Người bán: {product.sellerName}
+                  {formatPrice(product.price)} • Người bán: {product.sellerName}
                 </Text>
               </View>
             </View>

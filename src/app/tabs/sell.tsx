@@ -259,7 +259,7 @@ export default function SellScreen() {
           [
             {
               text: 'Về Trang chủ',
-              onPress: () => router.push('/(tabs)' as any),
+              onPress: () => router.push('/tabs' as any),
             },
           ]
         );

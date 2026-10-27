@@ -105,7 +105,7 @@ export default function FavoritesScreen() {
           </Text>
           <AppButton
             title="Khám phá ngay"
-            onPress={() => router.push('/(tabs)/explore' as any)}
+            onPress={() => router.push('/tabs/explore' as any)}
             style={{ marginTop: Spacing.sm }}
           />
         </View>

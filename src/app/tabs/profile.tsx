@@ -293,7 +293,7 @@ export default function ProfileScreen() {
       <AppButton
         title="Đăng thanh lý món đồ mới"
         variant="primary"
-        onPress={() => router.push('/(tabs)/sell' as any)}
+        onPress={() => router.push('/tabs/sell' as any)}
         icon={<Ionicons name="add-circle" size={20} color={colors.white} />}
         style={{ marginTop: 2 }}
       />
@@ -382,7 +382,7 @@ export default function ProfileScreen() {
             { color: item.price === 0 ? colors.success : colors.price },
           ]}
         >
-          {item.price === 0 ? 'Tặng 0đ' : formatPrice(item.price)}
+          {formatPrice(item.price)}
         </Text>
         <Text style={[styles.itemLocation, { color: colors.textSecondary }]}>
           📍 {item.location} • {item.createdAt || 'Hôm nay'}
@@ -459,7 +459,7 @@ export default function ProfileScreen() {
               {item.productTitle || 'Sản phẩm giao dịch'}
             </Text>
             <Text style={[styles.meetupProductPrice, { color: colors.price }]}>
-              {item.productPrice ? formatPrice(item.productPrice) : '0đ (Tặng)'}
+              {item.productPrice ? formatPrice(item.productPrice) : 'Chưa định giá'}
             </Text>
           </View>
         </View>

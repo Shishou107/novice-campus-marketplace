@@ -57,7 +57,7 @@ export default function HomeScreen() {
   }, [fetchProducts]);
 
   const handleNavigateToSell = () => {
-    router.push('/(tabs)/sell' as any);
+    router.push('/tabs/sell' as any);
   };
 
   const handleProductPress = (productId: number) => {
@@ -142,7 +142,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={[styles.headerIconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/profile' as any)}
+            onPress={() => router.push('/tabs/profile' as any)}
             accessibilityLabel="Hồ sơ sinh viên"
           >
             <Ionicons name={user ? 'person' : 'person-outline'} size={17} color={colors.primary} />
@@ -253,7 +253,7 @@ export default function HomeScreen() {
             style={[styles.heroActionBtn, { backgroundColor: colors.primary }]}
           >
             <Ionicons name="add-circle" size={16} color="#FFFFFF" style={{ marginRight: 4 }} />
-            <Text style={styles.heroActionBtnText}>Đăng món đồ thanh lý (0đ phí)</Text>
+            <Text style={styles.heroActionBtnText}>Đăng thanh lý món đồ ngay</Text>
           </TouchableOpacity>
         </View>
       </View>

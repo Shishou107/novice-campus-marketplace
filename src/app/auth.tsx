@@ -347,7 +347,7 @@ export default function AuthScreen() {
               /* FORM ĐĂNG NHẬP */
               <View style={styles.form}>
                 <Text style={[styles.formHeader, Typography.subTitle, { color: colors.text }]}>
-                  Chào mừng bạn quay lại! 👋
+                  Chào mừng bạn quay lại!
                 </Text>
 
                 {/* Ô nhập Mã Sinh Viên */}
