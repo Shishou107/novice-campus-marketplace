@@ -88,9 +88,9 @@ async function seedInitialData(db: SQLite.SQLiteDatabase): Promise<void> {
         imageUrl: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600',
       },
       {
-        title: '[TẶNG 0Đ] Bộ giỏ móc quần áo + kẹp phơi đồ KTX DNTU',
-        description: 'Mình chuyển trọ về quê nên pass tặng 0đ cho bạn sinh viên nào mới vào phòng cần dùng nha!',
-        price: 0,
+        title: 'Bộ giỏ móc quần áo + kẹp phơi đồ KTX DNTU',
+        description: 'Mình chuyển trọ về quê nên thanh lý rẻ cho bạn sinh viên nào mới vào phòng cần dùng nha!',
+        price: 15000,
         stock: 1,
         category: 'dorm',
         location: 'Cổng chính DNTU (Cổng A)',
@@ -250,6 +250,8 @@ export async function initDatabase(): Promise<void> {
   `);
 
   await seedInitialData(db);
+  // Đảm bảo không còn sản phẩm 0đ trong hệ thống
+  await db.runAsync("UPDATE products SET price = 15000, title = 'Bộ giỏ móc quần áo + kẹp phơi đồ KTX DNTU' WHERE price = 0");
 }
 
 /* =======================================================================

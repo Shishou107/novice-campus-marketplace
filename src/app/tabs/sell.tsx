@@ -37,7 +37,6 @@ const LOCATION_PRESETS = [
 ];
 
 const QUICK_PRICES = [
-  { label: 'Tặng 0đ', value: 0 },
   { label: '20.000đ', value: 20000 },
   { label: '50.000đ', value: 50000 },
   { label: '100.000đ', value: 100000 },
@@ -202,7 +201,7 @@ export default function SellScreen() {
     if (!isConnected) {
       Alert.alert(
         'Ngoại tuyến',
-        'Bạn đang ở chế độ ngoại tuyến. Vui lòng kết nối Wi-Fi trường DNTU để đăng bài bán.'
+        'Bạn đang ở chế độ ngoại tuyến. Vui lòng kết nối Internet để đăng bài bán.'
       );
       return;
     }
@@ -216,7 +215,7 @@ export default function SellScreen() {
     }
 
     if (priceDisplay.trim() === '') {
-      newErrors.price = 'Vui lòng nhập giá bán (hoặc 0đ nếu tặng)';
+      newErrors.price = 'Vui lòng nhập giá bán ';
     }
 
     if (!location.trim()) {
@@ -378,7 +377,7 @@ export default function SellScreen() {
             <View style={{ marginTop: Spacing.sm }}>
               <AppInput
                 label="Giá bán (VNĐ) *"
-                placeholder="Nhập 0 nếu bạn muốn tặng miễn phí"
+                placeholder="VD: 50.000"
                 value={priceDisplay}
                 onChangeText={handlePriceChange}
                 keyboardType="numeric"

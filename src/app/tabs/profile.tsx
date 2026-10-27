@@ -54,6 +54,9 @@ export default function ProfileScreen() {
     useCallback(() => {
       if (user) {
         fetchUserData();
+      } else {
+        setMyProducts([]);
+        setMeetups([]);
       }
     }, [user, fetchUserData])
   );
@@ -138,6 +141,8 @@ export default function ProfileScreen() {
         text: 'Đăng xuất',
         style: 'destructive',
         onPress: async () => {
+          setMyProducts([]);
+          setMeetups([]);
           await logout();
         },
       },
@@ -495,13 +500,15 @@ export default function ProfileScreen() {
 
         {/* Action Controls for Meetup */}
         <View style={styles.meetupActionsRow}>
-          {item.status === 'pending' && isSeller ? (
+          {item.status === 'pending' ? (
             <TouchableOpacity
               onPress={() => handleUpdateMeetup(item.id, 'confirmed')}
               style={[styles.meetupActionBtn, { backgroundColor: colors.primary }]}
             >
               <Ionicons name="checkmark-done" size={14} color={colors.white} />
-              <Text style={[styles.meetupActionBtnText, { color: colors.white }]}>Xác nhận điểm hẹn</Text>
+              <Text style={[styles.meetupActionBtnText, { color: colors.white }]}>
+                {isSeller ? 'Xác nhận điểm hẹn' : 'Xác nhận điểm hẹn (Đối tác)'}
+              </Text>
             </TouchableOpacity>
           ) : null}
 

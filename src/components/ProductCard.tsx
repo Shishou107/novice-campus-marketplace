@@ -73,19 +73,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onFa
   const colors = useTheme();
   const { user } = useAuth();
   const [imageError, setImageError] = useState(false);
-  const [isFav, setIsFav] = useState<boolean>(Boolean(product.isFavorited));
+  const [optimisticFav, setOptimisticFav] = useState<{ id: number; val: boolean } | null>(null);
+
+  const isFav = optimisticFav && optimisticFav.id === product.id
+    ? optimisticFav.val
+    : Boolean(product.isFavorited);
 
   const categoryLabel = CATEGORIES.find((c) => c.id === product.category)?.label;
   const badgeText = product.location || categoryLabel || product.category;
   const sellerDisplayName = getShortSellerName(product.sellerName);
   const postTime = formatRelativeTime(product.createdAt);
   const hasValidImage = Boolean(product.imageUrl) && !imageError;
-  const isFree = product.price === 0;
 
   const handleToggleFav = async () => {
     if (!user) return;
     const nextState = !isFav;
-    setIsFav(nextState);
+    setOptimisticFav({ id: product.id, val: nextState });
     await toggleFavorite(user.id, product.id);
     onFavoriteChanged?.();
   };
@@ -152,13 +155,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onFa
             color={isFav ? colors.price : colors.textSecondary}
           />
         </TouchableOpacity>
-
-        {/* Acid Lime FREE Badge */}
-        {isFree ? (
-          <View style={[styles.freeTag, { backgroundColor: colors.acid, borderColor: colors.border }]}>
-            <Text style={styles.freeTagText}>0Đ TẶNG</Text>
-          </View>
-        ) : null}
       </View>
 
       {/* Details Container */}
@@ -166,13 +162,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onPress, onFa
         {/* Price row */}
         <View style={styles.priceRow}>
           <Text
-            style={[
-              styles.price,
-              { color: isFree ? colors.success : colors.price },
-            ]}
+            style={[styles.price, { color: colors.price }]}
             numberOfLines={1}
           >
-            {isFree ? 'Tặng miễn phí' : formatPrice(product.price)}
+            {formatPrice(product.price)}
           </Text>
         </View>
 

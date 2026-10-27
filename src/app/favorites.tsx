@@ -130,6 +130,7 @@ export default function FavoritesScreen() {
               <ProductCard
                 product={item}
                 onPress={() => router.push(('/product/' + item.id) as any)}
+                onFavoriteChanged={fetchFavorites}
               />
             </View>
           )}

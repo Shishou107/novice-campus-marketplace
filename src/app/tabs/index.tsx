@@ -5,6 +5,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -26,7 +27,8 @@ export default function HomeScreen() {
   const { user } = useAuth();
 
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all' | 'free'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -54,10 +56,6 @@ export default function HomeScreen() {
     fetchProducts(false);
   }, [fetchProducts]);
 
-  const handleNavigateToExplore = () => {
-    router.push('/(tabs)/explore' as any);
-  };
-
   const handleNavigateToSell = () => {
     router.push('/(tabs)/sell' as any);
   };
@@ -66,12 +64,22 @@ export default function HomeScreen() {
     router.push(('/product/' + productId) as any);
   };
 
-  // Filter products by selected quick category
+  // Filter products by selected quick category and search query
   const filteredProducts = useMemo(() => {
-    if (selectedCategory === 'all') return products;
-    if (selectedCategory === 'free') return products.filter((p) => p.price === 0);
-    return products.filter((p) => p.category === selectedCategory);
-  }, [products, selectedCategory]);
+    return products.filter((p) => {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchTitle = p.title.toLowerCase().includes(q);
+        const matchDesc = p.description?.toLowerCase().includes(q) ?? false;
+        const matchSeller = p.sellerName.toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchSeller) return false;
+      }
+      if (selectedCategory !== 'all' && p.category !== selectedCategory) {
+        return false;
+      }
+      return true;
+    });
+  }, [products, selectedCategory, searchQuery]);
 
   const formattedProducts = useMemo(() => {
     if (filteredProducts.length % 2 !== 0) {
@@ -104,7 +112,7 @@ export default function HomeScreen() {
             <Text style={[styles.brandPillText, { color: colors.primary }]}>DNTU CAMPUS MARKETPLACE</Text>
           </View>
           <Text style={[styles.greetingTitle, { color: colors.text }]}>
-            {user ? `Chào ${user.name} 👋` : 'Chợ sinh viên DNTU 👋'}
+            {user ? `Chào ${user.name}` : 'Chợ sinh viên DNTU'}
           </Text>
           <Text style={[styles.greetingSubText, { color: colors.textSecondary }]}>
             Mua bán giáo trình & đồ KTX trong khuôn viên trường
@@ -146,16 +154,14 @@ export default function HomeScreen() {
       <View style={[styles.tickerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[styles.tickerDot, { backgroundColor: colors.accent }]} />
         <Text style={[styles.tickerText, { color: colors.text }]} numberOfLines={1}>
-          <Text style={{ fontWeight: '800' }}>TIN NHANH DNTU:</Text> Pass sách ĐHBK • Hẹn gặp tại Cổng A, Thư viện, Căn tin • Tặng đồ 0đ dọn KTX
+          <Text style={{ fontWeight: '800' }}>TIN NHANH DNTU:</Text> Pass sách ĐHBK • Hẹn gặp tại Cổng A, Thư viện, Căn tin • Tiết kiệm cho sinh viên
         </Text>
       </View>
 
-      {/* 3. Search Bar Button */}
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={handleNavigateToExplore}
+      {/* 3. Real Search Bar Input */}
+      <View
         style={[
-          styles.fakeSearchBar,
+          styles.realSearchBar,
           {
             backgroundColor: colors.surface,
             borderColor: colors.border,
@@ -168,13 +174,20 @@ export default function HomeScreen() {
           color={colors.textSecondary}
           style={styles.searchIcon}
         />
-        <Text style={[styles.searchPlaceholder, { color: colors.textSecondary }]}>
-          Tìm giáo trình DNTU, máy tính, đồ KTX...
-        </Text>
-        <View style={[styles.searchActionBadge, { backgroundColor: colors.primary }]}>
-          <Ionicons name="arrow-forward" size={13} color="#FFFFFF" />
-        </View>
-      </TouchableOpacity>
+        <TextInput
+          placeholder="Tìm tên môn học, giáo trình DNTU, đồ dùng..."
+          placeholderTextColor={colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={[styles.realSearchInput, { color: colors.text }]}
+          returnKeyType="search"
+        />
+        {searchQuery.length > 0 ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
+            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       {/* 4. Category Quick Filter Bar */}
       <View style={styles.categoriesRow}>
@@ -183,14 +196,12 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           data={[
             { id: 'all' as const, label: 'Tất cả' },
-            { id: 'free' as const, label: '🎁 Đồ tặng 0đ' },
             ...CATEGORIES,
           ]}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.categoryScroll}
           renderItem={({ item }) => {
             const isSelected = selectedCategory === item.id;
-            const isFree = item.id === 'free';
             return (
               <TouchableOpacity
                 onPress={() => setSelectedCategory(item.id)}
@@ -198,14 +209,10 @@ export default function HomeScreen() {
                   styles.categoryChip,
                   {
                     backgroundColor: isSelected
-                      ? isFree
-                        ? colors.acid
-                        : colors.primary
+                      ? colors.primary
                       : colors.surface,
                     borderColor: isSelected
-                      ? isFree
-                        ? colors.border
-                        : colors.primary
+                      ? colors.primary
                       : colors.border,
                   },
                 ]}
@@ -215,11 +222,9 @@ export default function HomeScreen() {
                     styles.categoryChipText,
                     {
                       color: isSelected
-                        ? isFree
-                          ? '#12140F'
-                          : colors.white
+                        ? colors.white
                         : colors.text,
-                      fontWeight: isSelected ? '800' : '600',
+                      fontWeight: isSelected ? '700' : '500',
                     },
                   ]}
                 >
@@ -260,8 +265,6 @@ export default function HomeScreen() {
           <Text style={[styles.listSectionTitle, { color: colors.text }]}>
             {selectedCategory === 'all'
               ? 'Món đồ mới đăng tại DNTU'
-              : selectedCategory === 'free'
-              ? 'Đồ tặng miễn phí 0đ'
               : CATEGORIES.find((c) => c.id === selectedCategory)?.label || 'Tin đăng'}
           </Text>
         </View>
@@ -425,6 +428,20 @@ const styles = StyleSheet.create({
   tickerText: {
     flex: 1,
     fontSize: 11.5,
+  },
+  realSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 46,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+  },
+  realSearchInput: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '500',
+    paddingVertical: 0,
   },
   fakeSearchBar: {
     flexDirection: 'row',

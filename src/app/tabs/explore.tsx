@@ -21,7 +21,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { getProducts } from '@/services/db';
 import { CATEGORIES, ProductCategory, ProductWithSeller } from '@/types';
 
-type PriceFilter = 'all' | 'free' | 'under50k' | '50k-200k' | 'above200k';
+type PriceFilter = 'all' | 'under50k' | '50k-200k' | 'above200k';
 type SortOption = 'newest' | 'priceAsc' | 'priceDesc';
 
 const LOCATION_OPTIONS = [
@@ -37,7 +37,6 @@ const LOCATION_OPTIONS = [
 
 const PRICE_OPTIONS: { id: PriceFilter; label: string }[] = [
   { id: 'all', label: 'Mọi mức giá' },
-  { id: 'free', label: '🎁 Tặng 0đ' },
   { id: 'under50k', label: '< 50.000đ' },
   { id: '50k-200k', label: '50k - 200k' },
   { id: 'above200k', label: '> 200.000đ' },
@@ -108,8 +107,7 @@ export default function ExploreScreen() {
         }
 
         // 4. Price Filter
-        if (selectedPrice === 'free' && item.price !== 0) return false;
-        if (selectedPrice === 'under50k' && (item.price === 0 || item.price >= 50000)) return false;
+        if (selectedPrice === 'under50k' && item.price >= 50000) return false;
         if (selectedPrice === '50k-200k' && (item.price < 50000 || item.price > 200000)) return false;
         if (selectedPrice === 'above200k' && item.price <= 200000) return false;
 
@@ -303,19 +301,14 @@ export default function ExploreScreen() {
           contentContainerStyle={styles.chipsScroll}
           renderItem={({ item }) => {
             const isSelected = selectedPrice === item.id;
-            const isFreeChoice = item.id === 'free';
             return (
               <TouchableOpacity
                 onPress={() => setSelectedPrice(item.id)}
                 style={[
                   styles.filterChip,
                   {
-                    backgroundColor: isSelected
-                      ? isFreeChoice
-                        ? colors.acid
-                        : colors.text
-                      : colors.surface,
-                    borderColor: isSelected ? colors.border : colors.border,
+                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? colors.primary : colors.border,
                   },
                 ]}
               >
@@ -323,12 +316,8 @@ export default function ExploreScreen() {
                   style={[
                     styles.filterChipText,
                     {
-                      color: isSelected
-                        ? isFreeChoice
-                          ? '#12140F'
-                          : colors.white
-                        : colors.text,
-                      fontWeight: isSelected ? '800' : '500',
+                      color: isSelected ? colors.white : colors.text,
+                      fontWeight: isSelected ? '700' : '500',
                     },
                   ]}
                 >
