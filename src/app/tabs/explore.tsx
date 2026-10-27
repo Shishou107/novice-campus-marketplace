@@ -74,6 +74,10 @@ export default function ExploreScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchProducts(false);
+      const timer = setInterval(() => {
+        fetchProducts(false);
+      }, 4000);
+      return () => clearInterval(timer);
     }, [fetchProducts])
   );
 

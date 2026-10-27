@@ -24,7 +24,7 @@ import { formatPrice } from '@/components/ProductCard';
 
 export default function ProfileScreen() {
   const colors = useTheme();
-  const { user, isLoggedIn, isLoading: authLoading, logout } = useAuth();
+  const { user, isLoggedIn, isLoading: authLoading, logout, switchUser } = useAuth();
 
   const [myProducts, setMyProducts] = useState<ProductWithSeller[]>([]);
   const [meetups, setMeetups] = useState<Meetup[]>([]);
@@ -54,6 +54,11 @@ export default function ProfileScreen() {
     useCallback(() => {
       if (user) {
         fetchUserData();
+        // Tự động đồng bộ cập nhật từ các máy/client khác mỗi 3 giây
+        const timer = setInterval(() => {
+          fetchUserData();
+        }, 3000);
+        return () => clearInterval(timer);
       } else {
         setMyProducts([]);
         setMeetups([]);
@@ -64,6 +69,30 @@ export default function ProfileScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchUserData();
+  };
+
+  const handleSwitchDemoRole = async () => {
+    if (!user) return;
+    const isCurrentlyHuy = user.studentId === 'DNTU202401';
+    const targetUserId = isCurrentlyHuy ? 2 : 1;
+    const targetName = isCurrentlyHuy ? 'Người mua (Nguyễn Tấn Tài)' : 'Người bán mẫu (Nguyễn Đức Huy)';
+
+    Alert.alert(
+      'Chuyển vai trò thử nghiệm',
+      `Bạn có muốn chuyển phiên sang [${targetName}] để kiểm tra giao diện và luồng xác nhận giữa hai bên?`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Chuyển đổi ngay',
+          onPress: async () => {
+            const ok = await switchUser(targetUserId);
+            if (ok) {
+              fetchUserData();
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleToggleStatus = async (item: ProductWithSeller) => {
@@ -260,6 +289,33 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Demo Role Switcher for 1-Device Testing */}
+      <View style={[styles.demoSwitcherCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.demoSwitcherHeader}>
+          <Ionicons name="swap-horizontal" size={15} color={colors.primary} />
+          <Text style={[styles.demoSwitcherTitle, { color: colors.text }]}>
+            Chuyển nhanh vai trò kiểm thử (Người mua ↔ Người bán)
+          </Text>
+        </View>
+        <Text style={[styles.demoSwitcherSub, { color: colors.textSecondary }]}>
+          {user.studentId === 'DNTU202401'
+            ? 'Hiện tại bạn đang là [NGƯỜI BÁN]: Nguyễn Đức Huy (Chủ các món đồ mẫu)'
+            : `Hiện tại bạn đang là [NGƯỜI MUA]: ${user.name} (${user.studentId})`}
+        </Text>
+        <TouchableOpacity
+          onPress={handleSwitchDemoRole}
+          style={[styles.demoSwitchBtn, { backgroundColor: colors.butter, borderColor: colors.border }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="people-outline" size={14} color="#12140F" />
+          <Text style={styles.demoSwitchBtnText}>
+            {user.studentId === 'DNTU202401'
+              ? 'Đổi sang Người mua (Nguyễn Tấn Tài)'
+              : 'Đổi sang Người bán (Nguyễn Đức Huy - DNTU202401)'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Quick Nav Shortcuts (Giỏ hàng & Món đồ yêu thích) */}
       <View style={styles.quickNavRow}>
         <TouchableOpacity
@@ -421,7 +477,12 @@ export default function ProfileScreen() {
     const isSeller = user?.id === item.sellerId;
     const partnerName = isSeller ? item.buyerName || 'Người mua' : item.sellerName || 'Người bán';
     const statusMap = {
-      pending: { label: 'Chờ xác nhận', bg: '#FFF7ED', color: '#EA580C', icon: 'hourglass-outline' },
+      pending: {
+        label: isSeller ? 'Yêu cầu hẹn mới' : 'Chờ người bán xác nhận',
+        bg: '#FFF7ED',
+        color: '#EA580C',
+        icon: isSeller ? 'notifications-outline' : 'hourglass-outline',
+      },
       confirmed: { label: 'Đã hẹn gặp', bg: '#EEF2FF', color: '#3448EE', icon: 'checkbox-outline' },
       completed: { label: 'Đã hoàn thành', bg: '#F0FDF4', color: '#16A34A', icon: 'checkmark-done-circle' },
       cancelled: { label: 'Đã hủy', bg: '#FEF2F2', color: '#DC2626', icon: 'close-circle-outline' },
@@ -498,37 +559,124 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
+        {/* Status Message Info Notice */}
+        <View
+          style={[
+            styles.meetupNoticeBox,
+            {
+              backgroundColor:
+                item.status === 'confirmed'
+                  ? '#EEF2FF'
+                  : item.status === 'completed'
+                  ? '#F0FDF4'
+                  : item.status === 'cancelled'
+                  ? '#FEF2F2'
+                  : isSeller
+                  ? '#FFFBEB'
+                  : '#F0F9FF',
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Ionicons
+            name={
+              item.status === 'confirmed'
+                ? 'checkmark-circle'
+                : item.status === 'completed'
+                ? 'trophy'
+                : item.status === 'cancelled'
+                ? 'alert-circle'
+                : 'information-circle'
+            }
+            size={15}
+            color={
+              item.status === 'confirmed'
+                ? colors.primary
+                : item.status === 'completed'
+                ? colors.success
+                : item.status === 'cancelled'
+                ? colors.danger
+                : colors.textSecondary
+            }
+          />
+          <Text style={[styles.meetupNoticeText, { color: colors.text }]}>
+            {item.status === 'pending'
+              ? isSeller
+                ? `Yêu cầu hẹn mới: ${partnerName} muốn gặp bạn tại ${item.meetingPointName || 'trường DNTU'}. Bạn hãy bấm xác nhận nếu đồng ý lịch hẹn.`
+                : `Bạn đã gửi yêu cầu. Đang chờ người bán (${partnerName}) kiểm tra và bấm xác nhận trước khi bạn đến điểm gặp.`
+              : item.status === 'confirmed'
+              ? isSeller
+                ? `Bạn đã đồng ý lịch hẹn! Hãy mang đồ đến ${item.meetingPointName} lúc ${item.scheduledAt} để gặp đối tác.`
+                : `Người bán (${partnerName}) đã xác nhận điểm hẹn! Hãy đến ${item.meetingPointName} lúc ${item.scheduledAt} để kiểm tra đồ trực tiếp.`
+              : item.status === 'completed'
+              ? 'Buổi giao dịch trực tiếp trong khuôn viên DNTU đã hoàn thành thành công.'
+              : 'Lịch hẹn giao dịch này đã bị hủy.'}
+          </Text>
+        </View>
+
         {/* Action Controls for Meetup */}
         <View style={styles.meetupActionsRow}>
-          {item.status === 'pending' ? (
+          {/* TRƯỜNG HỢP 1: PENDING - CHỈ NGƯỜI BÁN MỚI ĐƯỢC XÁC NHẬN */}
+          {item.status === 'pending' && isSeller ? (
             <TouchableOpacity
               onPress={() => handleUpdateMeetup(item.id, 'confirmed')}
               style={[styles.meetupActionBtn, { backgroundColor: colors.primary }]}
             >
               <Ionicons name="checkmark-done" size={14} color={colors.white} />
               <Text style={[styles.meetupActionBtnText, { color: colors.white }]}>
-                {isSeller ? 'Xác nhận điểm hẹn' : 'Xác nhận điểm hẹn (Đối tác)'}
+                Xác nhận điểm hẹn
               </Text>
             </TouchableOpacity>
           ) : null}
 
+          {/* TRƯỜNG HỢP 2: PENDING - NGƯỜI MUA CHỜ ĐỢI HOẶC BẤM MÔ PHỎNG TEST TRÊN 1 MÁY */}
+          {item.status === 'pending' && !isSeller ? (
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Mô phỏng Người bán duyệt',
+                  `Giả lập tài khoản người bán (${partnerName}) đồng ý xác nhận điểm hẹn này để bạn tiếp tục kiểm thử luồng đi gặp?`,
+                  [
+                    { text: 'Hủy', style: 'cancel' },
+                    {
+                      text: 'Duyệt (Mô phỏng)',
+                      onPress: () => handleUpdateMeetup(item.id, 'confirmed'),
+                    },
+                  ]
+                );
+              }}
+              style={[styles.meetupActionBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <Ionicons name="hardware-chip-outline" size={14} color={colors.primary} />
+              <Text style={[styles.meetupActionBtnText, { color: colors.primary }]}>
+                Mô phỏng Người bán duyệt
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {/* TRƯỜNG HỢP 3: CONFIRMED - CẢ 2 BÊN GẶP MẶT VÀ HOÀN TẤT */}
           {item.status === 'confirmed' ? (
             <TouchableOpacity
               onPress={() => handleUpdateMeetup(item.id, 'completed')}
               style={[styles.meetupActionBtn, { backgroundColor: colors.success }]}
             >
               <Ionicons name="checkmark-circle" size={14} color={colors.white} />
-              <Text style={[styles.meetupActionBtnText, { color: colors.white }]}>Đã hoàn thành</Text>
+              <Text style={[styles.meetupActionBtnText, { color: colors.white }]}>
+                {isSeller ? 'Đã giao hàng & Hoàn tất' : 'Đã nhận đồ & Hoàn tất'}
+              </Text>
             </TouchableOpacity>
           ) : null}
 
+          {/* NÚT HỦY / TỪ CHỐI */}
           {item.status !== 'completed' && item.status !== 'cancelled' ? (
             <TouchableOpacity
               onPress={() => handleUpdateMeetup(item.id, 'cancelled')}
               style={[styles.meetupActionBtn, { backgroundColor: colors.dangerLight }]}
             >
               <Ionicons name="close" size={14} color={colors.danger} />
-              <Text style={[styles.meetupActionBtnText, { color: colors.danger }]}>Hủy hẹn</Text>
+              <Text style={[styles.meetupActionBtnText, { color: colors.danger }]}>
+                {item.status === 'pending' ? (isSeller ? 'Từ chối' : 'Hủy yêu cầu') : 'Hủy hẹn'}
+              </Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -974,6 +1122,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  meetupNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  meetupNoticeText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    flex: 1,
+    lineHeight: 16,
+  },
+  demoSwitcherCard: {
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    marginTop: Spacing.sm,
+    gap: 6,
+  },
+  demoSwitcherHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  demoSwitcherTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  demoSwitcherSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  demoSwitchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    marginTop: 2,
+  },
+  demoSwitchBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#12140F',
   },
 });
 

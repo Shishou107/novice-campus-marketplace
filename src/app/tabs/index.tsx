@@ -49,6 +49,11 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchProducts(false);
+      // Tự động kiểm tra món đồ mới từ các thiết bị khác mỗi 4 giây
+      const timer = setInterval(() => {
+        fetchProducts(false);
+      }, 4000);
+      return () => clearInterval(timer);
     }, [fetchProducts])
   );
 

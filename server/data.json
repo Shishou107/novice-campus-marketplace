@@ -1,0 +1,189 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Nguyễn Đức Huy",
+      "studentId": "DNTU202401",
+      "password": "123456",
+      "phone": "0987654321",
+      "avatar": null,
+      "role": "student",
+      "createdAt": "2026-10-27 08:00:00"
+    },
+    {
+      "id": 2,
+      "name": "Nguyễn Tấn Tài",
+      "studentId": "1923050065",
+      "password": "123456",
+      "phone": "0912345678",
+      "avatar": null,
+      "role": "student",
+      "createdAt": "2026-10-27 08:00:00"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "userId": 1,
+      "title": "Giáo trình Giải tích 1 + Đề cương ôn thi DNTU",
+      "description": "Sách bìa kiếng còn mới 95%, có kèm tập ghi chép giải bài tập và đề thi các năm trước của khoa.",
+      "price": 35000,
+      "stock": 2,
+      "category": "book",
+      "location": "Thư viện DNTU (Tầng 1)",
+      "imageUrl": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 10:00:00"
+    },
+    {
+      "id": 2,
+      "userId": 1,
+      "title": "Nồi cơm điện tử Bear 1.2L dùng phòng KTX DNTU",
+      "description": "Nồi nhỏ gọn chống dính siêu bền, công suất 300W thích hợp dùng phòng KTX không sợ quá tải điện.",
+      "price": 120000,
+      "stock": 1,
+      "category": "dorm",
+      "location": "Căn tin & Khu tự học",
+      "imageUrl": "https://images.unsplash.com/photo-1544233726-9f1d2b27be8b?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 11:00:00"
+    },
+    {
+      "id": 3,
+      "userId": 1,
+      "title": "Máy tính Casio fx-580VN X chính hãng Bitex",
+      "description": "Đầy đủ nắp trượt, còn bảo hành 1 năm, phím bấm cực êm, màn hình nét không điểm chết.",
+      "price": 280000,
+      "stock": 1,
+      "category": "tech",
+      "location": "Sảnh Giảng đường A",
+      "imageUrl": "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 12:00:00"
+    },
+    {
+      "id": 4,
+      "userId": 1,
+      "title": "Bộ giỏ móc quần áo + kẹp phơi đồ KTX DNTU",
+      "description": "Mình chuyển trọ về quê nên thanh lý rẻ cho bạn sinh viên nào mới vào phòng cần dùng nha!",
+      "price": 15000,
+      "stock": 1,
+      "category": "dorm",
+      "location": "Cổng chính DNTU (Cổng A)",
+      "imageUrl": "https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 13:00:00"
+    },
+    {
+      "id": 5,
+      "userId": 1,
+      "title": "Bàn học gấp gọn đa năng có khay đựng ly & iPad",
+      "description": "Bàn chân sắt bọc cao su chống trượt chữ U, mặt bàn gỗ công nghiệp ép láng mịn sạch sẽ.",
+      "price": 49000,
+      "stock": 3,
+      "category": "dorm",
+      "location": "Căn tin & Khu tự học",
+      "imageUrl": "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 14:00:00"
+    },
+    {
+      "id": 6,
+      "userId": 1,
+      "title": "Xe đạp cào cào Martin đi học DNTU siêu bền",
+      "description": "Xe đạp nhẹ, lốp mới thay, thắng ăn, có gắn kèm giỏ xe và khóa dây an toàn số 4 số.",
+      "price": 450000,
+      "stock": 1,
+      "category": "vehicle",
+      "location": "Cổng chính DNTU (Cổng A)",
+      "imageUrl": "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 15:00:00"
+    },
+    {
+      "id": 7,
+      "userId": 1,
+      "title": "Tai nghe Bluetooth Lenovo Thinkplus bass trầm học bài",
+      "description": "Hộp sạc nhỏ gọn, pin trâu 5 tiếng, có sạc Type-C, mic đàm thoại rõ khi học online meeting.",
+      "price": 95000,
+      "stock": 1,
+      "category": "tech",
+      "location": "Thư viện DNTU (Tầng 1)",
+      "imageUrl": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 16:00:00"
+    },
+    {
+      "id": 8,
+      "userId": 1,
+      "title": "Áo khoác gió đồng phục DNTU màu xanh size L",
+      "description": "Chất vải dù chống mưa nhẹ 2 lớp, mặc mùa mưa đi học cực kỳ tiện, mới giặt thơm tho.",
+      "price": 65000,
+      "stock": 2,
+      "category": "fashion",
+      "location": "Nhà thi đấu Thể thao DNTU",
+      "imageUrl": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=600",
+      "status": "available",
+      "createdAt": "2026-10-27 17:00:00"
+    }
+  ],
+  "meetingPoints": [
+    {
+      "id": 1,
+      "name": "Cổng chính DNTU (Cổng A)",
+      "code": "GATE_A",
+      "area": "Khu vực Cổng vào",
+      "description": "Gần bốt bảo vệ Cổng A, thuận tiện cho sinh viên đi xe máy hoặc xe buýt ghé nhận đồ nhanh.",
+      "xRatio": 0.18,
+      "yRatio": 0.85
+    },
+    {
+      "id": 2,
+      "name": "Thư viện Trung tâm DNTU (Tầng 1)",
+      "code": "LIB_F1",
+      "area": "Tòa nhà Thư viện",
+      "description": "Sảnh máy lạnh trước cửa vào Thư viện, có ghế ngồi chờ, yên tĩnh và an toàn.",
+      "xRatio": 0.5,
+      "yRatio": 0.35
+    },
+    {
+      "id": 3,
+      "name": "Căn tin & Khu tự học",
+      "code": "CANTEEN",
+      "area": "Khu dịch vụ Sinh viên",
+      "description": "Khu vực bàn ghế thoáng mát, đông đúc sinh viên, dễ nhận diện nhau qua đồng phục.",
+      "xRatio": 0.82,
+      "yRatio": 0.75
+    },
+    {
+      "id": 4,
+      "name": "Sảnh Giảng đường A",
+      "code": "HALL_A",
+      "area": "Khu Hiệu bộ & Giảng đường A",
+      "description": "Sảnh chính tòa nhà A, ngay chân cầu thang máy, địa điểm gặp mặt quen thuộc.",
+      "xRatio": 0.35,
+      "yRatio": 0.5
+    },
+    {
+      "id": 5,
+      "name": "Sảnh Giảng đường B",
+      "code": "HALL_B",
+      "area": "Khu Giảng đường B",
+      "description": "Khu vực ghế đá dưới bóng mát cây xanh trước sảnh B, tiện cho sinh viên sau giờ học.",
+      "xRatio": 0.65,
+      "yRatio": 0.5
+    },
+    {
+      "id": 6,
+      "name": "Nhà thi đấu Thể thao DNTU",
+      "code": "SPORT_HALL",
+      "area": "Khu phức hợp Thể thao",
+      "description": "Cửa chính Nhà thi đấu đa năng, không gian rộng rãi, dễ dàng đỗ xe dừng lại lấy đồ.",
+      "xRatio": 0.75,
+      "yRatio": 0.2
+    }
+  ],
+  "meetups": [],
+  "favorites": [],
+  "cartItems": []
+}

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User } from '@/types';
-import { getCurrentSession, initDatabase, loginUser, logoutUser, registerUser } from '@/services/db';
+import { getCurrentSession, initDatabase, loginUser, logoutUser, registerUser, switchUserById } from '@/services/db';
 
 export interface AuthContextType {
   user: User | null;
@@ -15,6 +15,7 @@ export interface AuthContextType {
     avatar?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  switchUser: (userId: number) => Promise<boolean>;
   refreshSession: () => Promise<void>;
 }
 
@@ -92,6 +93,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const switchUser = async (targetUserId: number): Promise<boolean> => {
+    try {
+      const res = await switchUserById(targetUserId);
+      if (res.success && res.user) {
+        setUser(res.user);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -101,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        switchUser,
         refreshSession,
       }}
     >

@@ -1,5 +1,14 @@
 import * as SQLite from 'expo-sqlite';
 import {
+  apiCreateMeetup,
+  apiCreateProduct,
+  apiGetFavoriteIds,
+  apiGetMeetups,
+  apiGetProducts,
+  apiToggleFavorite,
+  apiUpdateMeetupStatus,
+} from './api';
+import {
   AuthSession,
   CartItem,
   DNTU_MEETING_POINTS,
@@ -445,6 +454,7 @@ export async function createProduct(data: {
   imageUrl?: string;
 }): Promise<{ success: boolean; productId?: number; error?: string }> {
   try {
+    void apiCreateProduct(data);
     const db = await getDb();
 
     const result = await db.runAsync(
@@ -476,6 +486,34 @@ export async function getProducts(options?: {
   currentUserId?: number;
 }): Promise<ProductWithSeller[]> {
   const db = await getDb();
+
+  // Đồng bộ danh mục sản phẩm từ server chung giữa các client
+  try {
+    const serverProds = await apiGetProducts(options?.currentUserId);
+    if (serverProds && serverProds.length > 0) {
+      for (const sp of serverProds) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO products (id, user_id, title, description, price, stock, category, location, image_url, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            sp.id,
+            sp.userId,
+            sp.title,
+            sp.description ?? null,
+            sp.price,
+            sp.stock,
+            sp.category,
+            sp.location,
+            sp.imageUrl ?? null,
+            sp.status,
+            sp.createdAt ?? new Date().toISOString(),
+          ]
+        );
+      }
+    }
+  } catch {
+    // Offline, tiếp tục đọc từ SQLite
+  }
 
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -570,6 +608,7 @@ export async function deleteProduct(id: number, userId: number): Promise<boolean
  * ======================================================================= */
 
 export async function toggleFavorite(userId: number, productId: number): Promise<boolean> {
+  void apiToggleFavorite(userId, productId);
   const db = await getDb();
   const existing = await db.getFirstAsync<{ id: number }>(
     'SELECT id FROM favorites WHERE user_id = ? AND product_id = ?',
@@ -586,6 +625,12 @@ export async function toggleFavorite(userId: number, productId: number): Promise
 }
 
 export async function getUserFavoriteIds(userId: number): Promise<number[]> {
+  try {
+    const serverIds = await apiGetFavoriteIds(userId);
+    if (serverIds) return serverIds;
+  } catch {
+    // Offline
+  }
   const db = await getDb();
   const rows = await db.getAllAsync<{ product_id: number }>(
     'SELECT product_id FROM favorites WHERE user_id = ?',
@@ -766,10 +811,22 @@ export async function createMeetup(data: {
   try {
     const db = await getDb();
 
+    // 1. Đồng bộ lên máy chủ trung tâm để client Người bán ở thiết bị khác nhận được tức thì
+    let serverMeetupId: number | undefined;
+    try {
+      const serverRes = await apiCreateMeetup(data);
+      if (serverRes && serverRes.success && serverRes.meetupId) {
+        serverMeetupId = serverRes.meetupId;
+      }
+    } catch {
+      // Offline fallback
+    }
+
     const res = await db.runAsync(
-      `INSERT INTO meetups (order_id, product_id, buyer_id, seller_id, meeting_point_id, scheduled_at, status, notes)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO meetups (id, order_id, product_id, buyer_id, seller_id, meeting_point_id, scheduled_at, status, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
+        serverMeetupId ?? null,
         data.orderId ?? null,
         data.productId,
         data.buyerId,
@@ -780,7 +837,7 @@ export async function createMeetup(data: {
       ]
     );
 
-    return { success: true, meetupId: res.lastInsertRowId };
+    return { success: true, meetupId: serverMeetupId || res.lastInsertRowId };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Không thể tạo lịch hẹn gặp.' };
   }
@@ -788,6 +845,35 @@ export async function createMeetup(data: {
 
 export async function getMeetups(userId: number): Promise<Meetup[]> {
   const db = await getDb();
+
+  // 1. Thử lấy danh sách cập nhật mới nhất từ Server trung tâm (nếu có mạng)
+  try {
+    const serverMeetups = await apiGetMeetups(userId);
+    if (serverMeetups && serverMeetups.length >= 0) {
+      for (const m of serverMeetups) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO meetups (id, order_id, product_id, buyer_id, seller_id, meeting_point_id, scheduled_at, status, notes, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            m.id,
+            m.orderId ?? null,
+            m.productId,
+            m.buyerId,
+            m.sellerId,
+            m.meetingPointId,
+            m.scheduledAt,
+            m.status,
+            m.notes ?? null,
+            m.createdAt ?? new Date().toISOString(),
+          ]
+        );
+      }
+      return serverMeetups;
+    }
+  } catch {
+    // Ngoại tuyến: tiếp tục truy vấn từ SQLite cache bên dưới
+  }
+
   const sql = `
     SELECT 
       m.*,
@@ -855,5 +941,36 @@ export async function updateMeetupStatus(
 ): Promise<boolean> {
   const db = await getDb();
   const res = await db.runAsync('UPDATE meetups SET status = ? WHERE id = ?', [status, meetupId]);
+  // Đồng bộ lên server trung tâm để thiết bị kia cập nhật theo
+  void apiUpdateMeetupStatus(meetupId, status);
   return res.changes > 0;
+}
+
+export async function switchUserById(userId: number): Promise<{ success: boolean; user?: User; error?: string }> {
+  try {
+    const db = await getDb();
+    const userRow = await db.getFirstAsync<DbUserRow>(
+      'SELECT id, name, student_id, phone, avatar, role, created_at FROM users WHERE id = ?',
+      [userId]
+    );
+    if (!userRow) {
+      return { success: false, error: 'Không tìm thấy tài khoản người dùng!' };
+    }
+    await db.runAsync('UPDATE session SET user_id = ?, is_logged_in = 1 WHERE id = 1', [userRow.id]);
+    return { success: true, user: mapUserRow(userRow) };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Lỗi khi chuyển đổi tài khoản' };
+  }
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  try {
+    const db = await getDb();
+    const rows = await db.getAllAsync<DbUserRow>(
+      'SELECT id, name, student_id, phone, avatar, role, created_at FROM users ORDER BY id ASC'
+    );
+    return rows.map(mapUserRow);
+  } catch {
+    return [];
+  }
 }
