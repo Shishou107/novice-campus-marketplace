@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -181,6 +182,8 @@ export default function HomeScreen() {
           onChangeText={setSearchQuery}
           style={[styles.realSearchInput, { color: colors.text }]}
           returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
         />
         {searchQuery.length > 0 ? (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={{ padding: 4 }}>
@@ -191,19 +194,20 @@ export default function HomeScreen() {
 
       {/* 4. Category Quick Filter Bar */}
       <View style={styles.categoriesRow}>
-        <FlatList
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={[
+          contentContainerStyle={styles.categoryScroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          {[
             { id: 'all' as const, label: 'Tất cả' },
             ...CATEGORIES,
-          ]}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.categoryScroll}
-          renderItem={({ item }) => {
+          ].map((item) => {
             const isSelected = selectedCategory === item.id;
             return (
               <TouchableOpacity
+                key={item.id}
                 onPress={() => setSelectedCategory(item.id)}
                 style={[
                   styles.categoryChip,
@@ -232,8 +236,8 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
 
       {/* 5. Hero Promo Card DNTU */}
@@ -323,8 +327,9 @@ export default function HomeScreen() {
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.flatListContent}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmptyComponent}
+        ListHeaderComponent={renderHeader()}
+        ListEmptyComponent={renderEmptyComponent()}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

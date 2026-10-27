@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -181,6 +182,8 @@ export default function ExploreScreen() {
           onChangeText={setSearchQuery}
           style={[styles.searchInput, { color: colors.text }]}
           returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
         />
         {searchQuery.length > 0 ? (
           <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
@@ -192,16 +195,17 @@ export default function ExploreScreen() {
       {/* Category Pills Slider */}
       <View style={styles.filterSection}>
         <Text style={[styles.sectionHeading, { color: colors.text }]}>Danh mục</Text>
-        <FlatList
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={[{ id: 'all' as const, label: 'Tất cả' }, ...CATEGORIES]}
-          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.chipsScroll}
-          renderItem={({ item }) => {
+          keyboardShouldPersistTaps="handled"
+        >
+          {[{ id: 'all' as const, label: 'Tất cả' }, ...CATEGORIES].map((item) => {
             const isSelected = selectedCategory === item.id;
             return (
               <TouchableOpacity
+                key={item.id}
                 onPress={() => setSelectedCategory(item.id)}
                 style={[
                   styles.filterChip,
@@ -224,23 +228,24 @@ export default function ExploreScreen() {
                 </Text>
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
 
       {/* Location Filter Pills */}
       <View style={styles.filterSection}>
         <Text style={[styles.sectionHeading, { color: colors.text }]}>Địa điểm hẹn trong trường</Text>
-        <FlatList
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={LOCATION_OPTIONS}
-          keyExtractor={(item) => item}
           contentContainerStyle={styles.chipsScroll}
-          renderItem={({ item }) => {
+          keyboardShouldPersistTaps="handled"
+        >
+          {LOCATION_OPTIONS.map((item) => {
             const isSelected = selectedLocation === item;
             return (
               <TouchableOpacity
+                key={item}
                 onPress={() => setSelectedLocation(item)}
                 style={[
                   styles.filterChip,
@@ -269,8 +274,8 @@ export default function ExploreScreen() {
                 </Text>
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
 
       {/* Price & Sort Row */}
@@ -293,16 +298,17 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </View>
 
-        <FlatList
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          data={PRICE_OPTIONS}
-          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.chipsScroll}
-          renderItem={({ item }) => {
+          keyboardShouldPersistTaps="handled"
+        >
+          {PRICE_OPTIONS.map((item) => {
             const isSelected = selectedPrice === item.id;
             return (
               <TouchableOpacity
+                key={item.id}
                 onPress={() => setSelectedPrice(item.id)}
                 style={[
                   styles.filterChip,
@@ -325,8 +331,8 @@ export default function ExploreScreen() {
                 </Text>
               </TouchableOpacity>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
 
       {/* Results Header Status */}
@@ -363,7 +369,8 @@ export default function ExploreScreen() {
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={renderHeader()}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <View style={styles.cardWrapper}>
               <ProductCard
